@@ -24,7 +24,8 @@ and the controller assignment. Controlify handles the controller input itself.
 4. Switch to Game Mode and launch it.
 
 The first launch creates Prism instances `P1`–`P4` (Minecraft 26.3 + Fabric + the mods) and the offline guest
-accounts, and Prism downloads Minecraft and Java 25. `--setup` repeats that step, for example after an update.
+accounts, and Prism downloads Minecraft and Java 25. Every launch refreshes the mods in those instances, so a new
+AppImage takes effect by itself (`--setup` only does that step and exits).
 
 ## Players and controllers
 P1 starts alone on **Press START to play**:

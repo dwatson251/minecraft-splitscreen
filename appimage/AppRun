@@ -25,10 +25,10 @@ if prism_running; then
 	exit 1
 fi
 
-if [ "${1:-}" = --setup ] || [ ! -d "$PRISM/instances/P4" ]; then
-	"$HERE/mcss-setup.sh" "$HERE/mods" || exit 1
-	[ "${1:-}" = --setup ] && exit 0
-fi
+# every launch: creates the instances the first time, and afterwards puts this AppImage's mods in them, so an
+# updated AppImage takes effect without a separate --setup
+"$HERE/mcss-setup.sh" "$HERE/mods" || exit 1
+[ "${1:-}" = --setup ] && exit 0
 
 # files the clients share (joined players, pad events, guest heartbeats); emptied so every session starts fresh
 CONTROL=$PRISM/mcss-control
