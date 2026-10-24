@@ -103,3 +103,4 @@
   in place of TitleScreen and DisconnectedScreen (AFTER_INIT swap), and auto-join from there. Esc/back are
   ignored.
 - Desktop Mode: the Deck's D-pad moved P2's menu focus. That was Steam's arrow-key emulation reaching the focused nested window; A/B/X/Y are pad-only, so they did nothing. The tiler now keeps keyboard focus on Player 1's window (focusPlayer1 on tile and on windowActivated).
+- 2026-10-25: v0.4.0 released (layout setting, guests close on leaving, waiting screen, P1 keeps keyboard focus, mods refreshed each launch). User playtest: works well.
