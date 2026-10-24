@@ -5,9 +5,9 @@ every player at once instead of focusing a single game window. Each player gets 
 
 How it works: the AppImage starts a nested KWin (already on SteamOS) as one window. Inside it, one Minecraft
 client per player is tiled: two players top/bottom, three with P1 across the top, four in quadrants. P1 uses your
-Microsoft account, opens the world "Splitscreen" and shares it on LAN. P2–P4 are offline guests
-(`Player2`–`Player4`) who join it automatically. A small Fabric mod (`glue-mod/`) does the joining, the window
-titles and the controller assignment. Controlify handles the controller input itself.
+Microsoft account. Whatever world P1 opens is shared on LAN, and P2–P4, offline guests `Player2`–`Player4`, join
+it automatically. A small Fabric mod (`glue-mod/`) does the joining, the window titles, the player-count screen
+and the controller assignment. Controlify handles the controller input itself.
 
 ## Requirements
 - Steam Deck (SteamOS 3.8+), or any Linux desktop with KWin 6.
@@ -27,14 +27,10 @@ The first launch creates Prism instances `P1`–`P4` (Minecraft 26.3 + Fabric + 
 accounts, and Prism downloads Minecraft and Java 25. `--setup` repeats that step, for example after an update.
 
 ## Players and controllers
-The player count comes from the launch options (Steam → game → Properties → Launch Options) and defaults to
-**2**:
-
-| Launch options | Players |
-| --- | --- |
-| *(empty)* | 2 |
-| `%command% 3` or `MCSS_PLAYERS=3 %command%` | 3 (1–4) |
-| `%command% auto` | one per connected controller |
+P1 starts alone and asks **How many players?** (1–4). Pick with the Deck's controls; the other players' views
+start one after another. The **Players: N** button at the top left of P1's title screen changes the count later
+(lowering it closes the extra views). Then open or create any world as P1; the others join as soon as it's open,
+and rejoin by themselves if P1 switches worlds.
 
 Controllers are detected automatically:
 - The Deck's own controls belong to P1, and other pads go to P2, P3, P4 in the order they're found.
@@ -42,6 +38,9 @@ Controllers are detected automatically:
   lowest-numbered player still waiting.
 - If a pad disconnects, its player takes the next free one.
 - Pads keep working while another player's view has focus.
+
+Under Steam the clients read the real controllers, not Steam Input's virtual pads. Steam's virtual pads all look
+the same to the game, so they can't be told apart.
 
 ## Logs
 `~/.local/state/mc-splitscreen/` holds `apprun.log`, `kwin.log` and `prism.log`. Each client's game log is in

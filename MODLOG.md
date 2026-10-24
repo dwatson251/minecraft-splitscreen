@@ -32,3 +32,26 @@
   getControllerManager() is present, and wrap the tick in try/catch. User confirmed: DualSense -> P2 only,
   P3 idle with the toast. Replug -> P2 again.
 - GitHub: dwatson251/minecraft-splitscreen. The HTTPS gh token lacks the `workflow` scope, so the remote uses SSH.
+
+## 2026-10-24, playtest feedback (Game Mode, Deck + PS4 pad)
+- Bug: the Deck drove both players. Under Steam the game only saw Steam Input's virtual pads, both named "Steam
+  Controller" with the same base uid (`461adb…`, second one `-1`), so the Deck-first rule never applied and Steam
+  Input decided the routing. Fix: AppRun gives the clients
+  SDL_GAMECONTROLLER_IGNORE_DEVICES=0x28DE/0x11FF and unsets SteamVirtualGamepadInfo and
+  SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT, so they read the real devices as outside Steam. Pad logs now include the
+  GUID and HID VID/PID. NOT yet verified in Game Mode.
+- Feature: P1 boots to the title screen and opens any world, which is auto-published (the forced "Splitscreen"
+  world is gone). Guests still auto-join (the user chose that over a join button).
+- Feature: P1 picks the player count on a Controlify-navigable PlayerCountScreen and writes
+  <prism>/mcss-control/players. AppRun starts or stops P2-P4 to match (stops by exact java PID). The launch-option
+  count was removed at the user's request.
+- Prism failed with "Could not load the Qt platform plugin xcb" when started from a Game Mode session
+  (QT_QPA_PLATFORM=xcb, while X11 is hidden). Prism now gets QT_QPA_PLATFORM=wayland.
+- In Desktop Mode, focus snapped to "1": Steam's desktop config turns Deck input into keyboard/mouse too, and
+  Controlify's mode switching reset focus to the first widget. Fix: Controlify mixedInput=true (its tooltip
+  recommends that with Steam Input), and the preferred button is added first. Then a heavy press skipped two
+  options (the same press arrived through both paths). Fix: a 200 ms debounce in PlayerCountScreen.changeFocus.
+- User confirmed in Desktop Mode: one step per press, picking 2 started P2, P1 opened "New World", it was
+  published and Player2 auto-joined in 6 s.
+- Screenshots of the Deck desktop over SSH: `spectacle -b -n -f -o /tmp/x.png` with WAYLAND_DISPLAY=wayland-0,
+  XDG_RUNTIME_DIR and the session bus set.

@@ -7,33 +7,31 @@ import java.net.Socket;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.Difficulty;
-import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.LevelSettings;
-import net.minecraft.world.level.WorldDataConfiguration;
-import net.minecraft.world.level.levelgen.WorldOptions;
-import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import org.slf4j.Logger;
 
 /**
- * Host: opens (or creates) the shared world from the title screen and publishes it on LAN with authentication off,
- * so offline-named guests can join. Guest: whenever it sits on the title screen, waits for the host's port and
- * joins. Every client: no pause on focus loss (only one tile has focus), guests muted so audio isn't doubled.
+ * Host: asks for the player count on its first title screen, keeps a "Players: N" button on the title screen, and
+ * publishes whatever world it opens on LAN with authentication off, so offline-named guests can join. Guest:
+ * whenever it sits on the title screen, waits for the host's port and joins. Every client: no pause on focus loss (only one tile has focus), guests muted so audio isn't doubled.
  */
 public class SplitscreenGlue implements ClientModInitializer {
 	public static final Logger LOG = LogUtils.getLogger();
 	private static final boolean CONTROLIFY = FabricLoader.getInstance().isModLoaded("controlify");
 
-	private boolean worldRequested;
+	private boolean askedPlayers;
 	private volatile boolean probing;
 
 	@Override
@@ -43,6 +41,16 @@ public class SplitscreenGlue implements ClientModInitializer {
 				Splitscreen.HOST ? "host" : "guest", Splitscreen.PORT);
 		ClientLifecycleEvents.CLIENT_STARTED.register(this::setOptions);
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+		if (Splitscreen.HOST) {
+			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
+				if (screen instanceof TitleScreen title) {
+					int n = Splitscreen.players();
+					Screens.getWidgets(screen).add(Button.builder(
+							Component.literal("Players: " + (n == 0 ? "?" : n)),
+							b -> mc.gui.setScreen(new PlayerCountScreen(title))).bounds(4, 4, 100, 20).build());
+				}
+			});
+		}
 	}
 
 	private void setOptions(Minecraft mc) {
@@ -66,22 +74,16 @@ public class SplitscreenGlue implements ClientModInitializer {
 		if (server != null && mc.player != null && !server.isPublished()) {
 			server.setUsesAuthentication(false);
 			boolean ok = server.publishServer(MinecraftServer.MultiplayerScope.LAN, true, Splitscreen.PORT);
-			LOG.info("[mcss] published '{}' on port {}: {}", Splitscreen.WORLD, Splitscreen.PORT, ok);
+			LOG.info("[mcss] published '{}' on port {}: {}", server.getWorldData().getLevelName(), Splitscreen.PORT, ok);
 			// publishing can fail if the port is taken; don't retry every tick
 			if (!ok) server.setUsesAuthentication(true);
 		}
-		if (!worldRequested && mc.gui.screen() instanceof TitleScreen) {
-			worldRequested = true;
-			if (mc.getLevelSource().levelExists(Splitscreen.WORLD)) {
-				LOG.info("[mcss] opening world '{}'", Splitscreen.WORLD);
-				mc.createWorldOpenFlows().openWorld(Splitscreen.WORLD, () -> mc.gui.setScreen(new TitleScreen()));
-			} else {
-				LOG.info("[mcss] creating world '{}'", Splitscreen.WORLD);
-				LevelSettings settings = new LevelSettings(Splitscreen.WORLD, GameType.SURVIVAL,
-						new LevelSettings.DifficultySettings(Difficulty.NORMAL, false, false), true,
-						WorldDataConfiguration.DEFAULT);
-				mc.createWorldOpenFlows().createFreshLevel(Splitscreen.WORLD, settings,
-						WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, new TitleScreen());
+		// first title screen of the session: P1 picks how many players before anyone else starts
+		if (!askedPlayers && mc.gui.screen() instanceof TitleScreen title) {
+			askedPlayers = true;
+			if (Splitscreen.players() == 0) {
+				LOG.info("[mcss] asking for the player count");
+				mc.gui.setScreen(new PlayerCountScreen(title));
 			}
 		}
 	}

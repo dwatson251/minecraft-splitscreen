@@ -1,11 +1,10 @@
 #!/bin/bash
 # Minecraft splitscreen for the Steam Deck: one window (what Game Mode / gamescope shows) holding a nested KWin that
-# tiles 1-4 Minecraft clients, one per controller. P1 hosts a LAN world, the others join it.
-#   MinecraftSplitscreen.AppImage            2 players
-#   MinecraftSplitscreen.AppImage 3          3 players (1-4); in Steam: launch options "%command% 3"
-#   MinecraftSplitscreen.AppImage auto       one player per connected controller (1-4)
+# tiles 1-4 Minecraft clients, one per controller.
+#   MinecraftSplitscreen.AppImage            start
 #   MinecraftSplitscreen.AppImage --setup    (re)create the Prism instances and offline accounts, then exit
-# MCSS_PLAYERS=<1-4|auto> does the same as the argument (Steam: "MCSS_PLAYERS=3 %command%").
+# P1 starts alone and asks how many players (Players: N on its title screen changes it later); this script starts
+# or stops P2-P4 to match. P1 opens any world, which is shared on LAN; the others join it automatically.
 # Controllers are matched to players automatically by the glue mod, including ones plugged in later.
 # Logs: ~/.local/state/mc-splitscreen/
 set -u
@@ -31,22 +30,10 @@ if [ "${1:-}" = --setup ] || [ ! -d "$PRISM/instances/P4" ]; then
 	[ "${1:-}" = --setup ] && exit 0
 fi
 
-# Controllers: under Steam every pad is mirrored as a virtual "Microsoft X-Box 360 pad N", which is what SDL in
-# the game sees; outside Steam count real joysticks.
-count_pads() {
-	local steam
-	steam=$(grep -c '^N: Name="Microsoft X-Box 360 pad' /proc/bus/input/devices)
-	if [ "$steam" -gt 0 ]; then echo "$steam"; else ls /dev/input/by-id/ 2>/dev/null | grep -c -- '-event-joystick$'; fi
-}
-REQ=${1:-${MCSS_PLAYERS:-2}}
-case "$REQ" in
-	[1-4]) PLAYERS=$REQ ;;
-	auto) PLAYERS=$(count_pads) ;;
-	*) log "unknown player count '$REQ' (use 1-4 or auto), using 2"; PLAYERS=2 ;;
-esac
-[ "$PLAYERS" -lt 1 ] && PLAYERS=1
-[ "$PLAYERS" -gt 4 ] && PLAYERS=4
-log "players: $PLAYERS"
+# the player count P1 picks; cleared so every session starts with the question
+CONTROL=$PRISM/mcss-control
+mkdir -p "$CONTROL" && rm -f "$CONTROL/players"
+log "start (Steam: ${SteamGamepadUI:+Game Mode}${SteamGamepadUI:-no}; SDL ignore list from Steam: ${SDL_GAMECONTROLLER_IGNORE_DEVICES:--})"
 
 MSA=$(python3 -c 'import json,sys
 a=json.load(open(sys.argv[1]))["accounts"]
@@ -75,7 +62,7 @@ else
 	fi
 fi
 rm -f "$XDG_RUNTIME_DIR/$SOCKET" "$XDG_RUNTIME_DIR/$SOCKET.lock"
-env XDG_CONFIG_HOME="$KW/config" XDG_DATA_HOME="$KW/data" QT_FORCE_STDERR_LOGGING=1 \
+env -u LD_PRELOAD XDG_CONFIG_HOME="$KW/config" XDG_DATA_HOME="$KW/data" QT_FORCE_STDERR_LOGGING=1 \
 	dbus-run-session -- kwin_wayland "${BACKEND[@]}" --width "$W" --height "$H" --socket "$SOCKET" \
 	> "$STATE/kwin.log" 2>&1 &
 KWIN=$!
@@ -94,10 +81,19 @@ teardown() {
 trap teardown EXIT INT TERM HUP
 
 # --- clients: SDL3 goes to the nested compositor over Wayland; no X11 so nothing escapes to gamescope ---
+# Controllers: under Steam, games get Steam Input's virtual pads (all named "Steam Controller", indistinguishable,
+# so the Deck ended up driving several players) and Steam hides the real devices. The clients instead ignore the
+# virtual pads (Valve 28de:11ff) and read the real devices, as outside Steam. Steam's 32-bit overlay preload only
+# spams errors in the 64-bit children. Prism (Qt) is pinned to Wayland: Game Mode's session sets
+# QT_QPA_PLATFORM=xcb, and X11 is hidden from the clients.
+PAD_ENV=(SDL_GAMECONTROLLER_IGNORE_DEVICES=0x28DE/0x11FF SDL_JOYSTICK_IGNORE_DEVICES=0x28DE/0x11FF)
 prism() {
-	env -u DISPLAY WAYLAND_DISPLAY="$SOCKET" SDL_VIDEODRIVER=wayland \
-		flatpak run --env=WAYLAND_DISPLAY="$SOCKET" --env=SDL_VIDEODRIVER=wayland --unset-env=DISPLAY \
-		"$PRISM_APP" "$@" >> "$STATE/prism.log" 2>&1 &
+	env -u DISPLAY -u LD_PRELOAD -u SteamVirtualGamepadInfo -u SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT \
+		WAYLAND_DISPLAY="$SOCKET" SDL_VIDEODRIVER=wayland QT_QPA_PLATFORM=wayland "${PAD_ENV[@]}" \
+		flatpak run --env=WAYLAND_DISPLAY="$SOCKET" --env=SDL_VIDEODRIVER=wayland --env=QT_QPA_PLATFORM=wayland \
+		--unset-env=DISPLAY \
+		--unset-env=LD_PRELOAD --unset-env=SteamVirtualGamepadInfo --unset-env=SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT \
+		"${PAD_ENV[@]/#/--env=}" "$PRISM_APP" "$@" >> "$STATE/prism.log" 2>&1 &
 }
 mc_pid() {  # the Java process of instance P$1, if running
 	local p
@@ -110,10 +106,30 @@ prism -l P1 -a "$MSA"
 for _ in $(seq 120); do [ -n "$(mc_pid 1)" ] && break; sleep 1; done
 [ -n "$(mc_pid 1)" ] || { log "P1 did not start, see $STATE/prism.log"; exit 1; }
 log "P1 java pid $(mc_pid 1)"
-for n in $(seq 2 "$PLAYERS"); do
-	sleep "${MCSS_STAGGER:-8}"   # loading four clients at once starves the Deck's 4 cores
-	prism -l "P$n" -a "Player$n"
-done
 
-# --- run until P1 quits or the compositor goes away ---
-while kill -0 "$KWIN" 2>/dev/null && [ -n "$(mc_pid 1)" ]; do sleep 2; done
+# --- match the running guests to the count P1 picks, until P1 quits or the compositor goes away ---
+declare -A LAUNCHED=()   # player -> when its launch was requested (a client takes a while to show up as java)
+LAST_LAUNCH=0
+while kill -0 "$KWIN" 2>/dev/null && [ -n "$(mc_pid 1)" ]; do
+	want=$(cat "$CONTROL/players" 2>/dev/null)
+	[[ "$want" =~ ^[1-4]$ ]] || want=1
+	now=$(date +%s)
+	for n in 2 3 4; do
+		pid=$(mc_pid "$n")
+		if [ "$n" -le "$want" ] && [ -z "$pid" ]; then
+			# one launch at a time: loading several clients at once starves the Deck's 4 cores
+			if [ $((now - ${LAUNCHED[$n]:-0})) -gt 120 ] && [ $((now - LAST_LAUNCH)) -ge "${MCSS_STAGGER:-8}" ]; then
+				log "starting P$n (players: $want)"
+				prism -l "P$n" -a "Player$n"
+				LAUNCHED[$n]=$now; LAST_LAUNCH=$now
+			fi
+		elif [ "$n" -gt "$want" ] && [ -n "$pid" ]; then
+			log "stopping P$n (players: $want), java pid $pid"
+			kill "$pid"
+			LAUNCHED[$n]=0
+		elif [ -n "$pid" ]; then
+			LAUNCHED[$n]=0
+		fi
+	done
+	sleep 2
+done

@@ -13,7 +13,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.network.chat.Component;
@@ -23,6 +22,9 @@ import net.minecraft.network.chat.Component;
  * other running client has claimed, and keeps it while it stays connected. A pad plugged in later goes to the
  * lowest-numbered player still without one; if a player's pad disconnects, they take the next free one.
  *
+ * Under Steam, AppRun hides Steam Input's virtual pads from the game (they all look alike, as "Steam Controller",
+ * so the Deck couldn't be told apart and players ended up on the wrong pad); the clients read the real devices.
+ *
  * Claims are small files next to the instances ("<prism>/mcss-pads/P<n>": timestamp + pad uid), refreshed every
  * second; a claim older than STALE_MS belongs to a client that quit. When two clients want the same pad, the lower
  * player number wins. First choice for player n is pad n-1 in a fixed order (a Steam Deck's own controls first, so
@@ -31,9 +33,7 @@ import net.minecraft.network.chat.Component;
  */
 final class ControlifyPin {
 	private static final long STALE_MS = 5000;
-	// game dir is <prism>/instances/P<n>/minecraft
-	private static final Path CLAIMS = FabricLoader.getInstance().getGameDir().toAbsolutePath().getParent()
-			.getParent().getParent().resolve("mcss-pads");
+	private static final Path CLAIMS = Splitscreen.SHARED.resolve("mcss-pads");
 
 	private static String claimedUid;
 	private static int ticks;
@@ -59,8 +59,12 @@ final class ControlifyPin {
 		Controlify c = Controlify.instance();
 		// before Controlify has discovered controllers there's no manager and no active profile yet
 		if (c.getControllerManager().isEmpty()) return;
-		if (!c.config().getSettings().globalSettings().outOfFocusInput) {
-			c.config().getSettings().globalSettings().outOfFocusInput = true;
+		// out-of-focus input: only one tile has focus. Mixed input: Steam turns Deck controls into keyboard/mouse
+		// events as well, and switching input mode on every press made Controlify reset menu focus to the first button
+		var global = c.config().getSettings().globalSettings();
+		if (!global.outOfFocusInput || !global.mixedInput) {
+			global.outOfFocusInput = true;
+			global.mixedInput = true;
 			c.config().markDirty();
 		}
 		List<ControllerEntity> pads = c.getControllerManager().map(m -> m.getConnectedControllers()).orElse(List.of())
@@ -68,7 +72,8 @@ final class ControlifyPin {
 		if (pads.size() != lastCount) {
 			lastCount = pads.size();
 			SplitscreenGlue.LOG.info("[mcss] controllers: {}", pads.stream()
-					.map(p -> p.name() + " uid=" + p.uid() + " id=" + p.info().ucid()).toList());
+					.map(p -> p.name() + " uid=" + p.uid() + " id=" + p.info().ucid() + " guid=" + p.guid()
+							+ " hid=" + p.info().hid().map(Object::toString).orElse("-")).toList());
 		}
 
 		ControllerEntity want = choose(pads, readClaims());
