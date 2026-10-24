@@ -27,12 +27,23 @@ The first launch creates Prism instances `P1`–`P4` (Minecraft 26.3 + Fabric + 
 accounts, and Prism downloads Minecraft and Java 25. Every launch refreshes the mods in those instances, so a new
 AppImage takes effect by itself (`--setup` only does that step and exits).
 
+## Profiles
+Every view starts by asking **Choose your profile**: Player 1 before the main menu, the others before they join.
+- **Create profile** is always the first card. Pick a skin (Minecraft's 9 built-in skins, or your own), choose
+  classic or slim arms, type a name on the on-screen keyboard, then Create.
+- **Custom skins:** put 64×64 skin PNGs in `~/Documents/Minecraft Skins`. They show up the next time you launch.
+- **Player 1** can also play as the **Microsoft account**, with its real skin. Online servers need that.
+- **In use:** a profile someone else is using is greyed out.
+- **Edit profile** changes a profile's skin or deletes it. Names can't change, because each world keeps a
+  profile's inventory under its name. Inventories are per world, as in normal Minecraft.
+- Player 1 can switch profile from **Splitscreen → Profile** on the title screen.
+
 ## Players and controllers
-P1 starts alone on **Press START to play**:
-- The first controller to press START is Player 1. The game doesn't go on to the menus until it knows Player 1's
-  controller.
+P1 starts alone:
+- The first controller to press any button is Player 1. The game doesn't go on to the menus until it knows Player
+  1's controller and profile.
 - Every other controller that presses START becomes the next player and gets its own view (about 30 s to load).
-  That works on the start screen and at any time later in game, up to 4 players.
+  That works at any time, up to 4 players. While Player 1 is alone, a reminder pops up now and then.
 - A new view shows **Waiting for Player 1's world…** (guests never see the menus) and "Press any button on your
   controller". After a couple of presses it finds its controller. It joins Player 1's world as soon as it's
   open, and **Cancel** closes that view.

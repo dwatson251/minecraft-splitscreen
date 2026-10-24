@@ -25,7 +25,8 @@ public class WaitingScreen extends DebouncedScreen {
 	protected void init() {
 		shown = state();
 		int y = height / 2 - 40;
-		center(Component.literal("Player " + Splitscreen.shown), y);
+		Profiles.Profile p = Profiles.active();
+		center(Component.literal("Player " + Splitscreen.shown + (p == null ? "" : ": " + Profiles.displayName(p))), y);
 		center(Component.literal("Waiting for Player 1's world..."), y + 16);
 		String pad = GuestPad.controllerName();
 		center(Component.literal(pad == null ? "Press any button on your controller" : "Controller: " + pad), y + 36);

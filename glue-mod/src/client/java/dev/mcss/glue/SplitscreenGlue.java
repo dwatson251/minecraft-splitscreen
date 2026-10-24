@@ -28,8 +28,8 @@ import net.minecraft.sounds.SoundSource;
 import org.slf4j.Logger;
 
 /**
- * Host: shows "Press START to play" (LobbyScreen) until Player 1's controller is known, adds a "Splitscreen"
- * settings button to its title screen and pause menu, and publishes whatever world it opens on LAN with authentication off, so offline-named guests can
+ * Every view first asks for a profile (ProfileSelectScreen). Host: no menus until Player 1 has a controller and a
+ * profile; adds a "Splitscreen" settings button to its title screen and pause menu, and publishes whatever world it opens on LAN with authentication off, so offline-named guests can
  * join. Guest: never shows the menus; it waits on WaitingScreen for the host's port and joins; leaving the world
  * while the host's is still open shuts the guest down (its player has left). Every client: no pause
  * on focus loss (only one tile has focus), guests muted so audio isn't doubled. Controllers: Lobby (host) and
@@ -58,11 +58,13 @@ public class SplitscreenGlue implements ClientModInitializer {
 			ServerLifecycleEvents.SERVER_STOPPING.register(server -> Splitscreen.write("world", "closed"));
 		} else {
 			ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> leaveCheckAt = System.currentTimeMillis() + 300);
-			// guests never show the menus: the title screen and "disconnected" become "Waiting for Player 1's world"
+			// guests never show the menus: the title screen and "disconnected" become the profile choice (first) and
+			// then "Waiting for Player 1's world"
 			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
 				if (screen instanceof TitleScreen || screen instanceof DisconnectedScreen) {
 					mc.execute(() -> {
-						if (mc.gui.screen() == screen) mc.gui.setScreen(new WaitingScreen());
+						if (mc.gui.screen() != screen) return;
+						mc.gui.setScreen(CONTROLIFY && Profiles.active() == null ? new ProfileSelectScreen(null) : new WaitingScreen());
 					});
 				}
 			});
@@ -71,9 +73,11 @@ public class SplitscreenGlue implements ClientModInitializer {
 			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
 				if (screen instanceof PauseScreen) Screens.getWidgets(screen).add(settingsButton(mc, screen));
 				if (screen instanceof TitleScreen title) {
-					// no menus before Player 1's controller is known: first boot, or Player 1's pad went away
-					if (CONTROLIFY && !Lobby.hostReady()) mc.execute(() -> {
-						if (mc.gui.screen() == title) mc.gui.setScreen(new LobbyScreen(title));
+					// no menus before Player 1 has a controller and a profile (first boot, or the pad went away)
+					if (CONTROLIFY && (Profiles.active() == null || !Lobby.hostReady())) mc.execute(() -> {
+						if (mc.gui.screen() == title) {
+							mc.gui.setScreen(new ProfileSelectScreen(Profiles.active() == null ? null : title));
+						}
 					});
 					Screens.getWidgets(screen).add(settingsButton(mc, screen));
 				}
@@ -99,6 +103,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 
 	private void tick(Minecraft mc) {
 		if (CONTROLIFY) {
+			Profiles.tick();
 			try {
 				if (Splitscreen.HOST) Lobby.tick();
 				else GuestPad.tick();

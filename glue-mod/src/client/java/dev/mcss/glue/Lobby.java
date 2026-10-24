@@ -13,9 +13,9 @@ import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.network.chat.Component;
 
 /**
- * "Press START to play", run by the host client (P1), which sees every pad. START on a pad nobody owns makes it a
- * player: first it goes to a player whose pad disconnected, otherwise to a free guest client (P2-P4; the very first
- * START is Player 1, the host's own view). Each join is written to the slots file, and AppRun starts that player's
+ * Joining, run by the host client (P1), which sees every pad. The first controller to press anything is Player 1
+ * (the host's own view). After that, START on a pad nobody owns makes it a player: first it goes to a player whose
+ * pad disconnected, otherwise to a free guest client (P2-P4). While Player 1 is alone a toast says so now and then. Each join is written to the slots file, and AppRun starts that player's
  * window. A guest that quits frees its client and its pad, and the players after it move up (ordered()). Player 1
  * never leaves: quitting the host ends the whole session.
  *
@@ -39,6 +39,7 @@ final class Lobby {
 	private static final int EVENTS_KEPT = 64;
 	private static final long START_TIMEOUT_MS = 180_000;  // a guest window that never comes up
 	private static final long ALIVE_TIMEOUT_MS = 20_000;   // a guest that stopped without saying so
+	private static final int JOIN_HINT_TICKS = 45 * 20;
 
 	private static final PadEdges EDGES = new PadEdges();
 	static final Map<Integer, Slot> SLOTS = new TreeMap<>();
@@ -65,7 +66,8 @@ final class Lobby {
 		boolean published = false;
 		for (PadEdges.Edge edge : edges) {
 			Integer owner = ownerOf(edge.pad());
-			if (owner == null && edge.down() && PadEdges.START.equals(edge.button())) {
+			// Player 1 takes the first controller that presses anything; everyone else joins with START
+			if (owner == null && edge.down() && (PadEdges.START.equals(edge.button()) || !hostReady())) {
 				owner = join(edge.pad());
 				changed |= owner != null;
 			}
@@ -78,6 +80,10 @@ final class Lobby {
 		if (published) Splitscreen.write("events", String.join("\n", EVENTS) + "\n");
 
 		if (ticks++ % 20 == 0) changed |= dropLeftGuests();
+		// while Player 1 plays alone, remind them that others can join
+		if (SLOTS.size() == 1 && hostReady() && ticks % JOIN_HINT_TICKS == JOIN_HINT_TICKS / 2) {
+			toast("Player 2", "Press START on a controller to join");
+		}
 		if (changed) writeSlots();
 		applyHostPad();
 	}

@@ -5,7 +5,7 @@ import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** "Splitscreen settings", Player 1 only: screen layout, and the players list (the START lobby). */
+/** "Splitscreen settings", Player 1 only: screen layout, the players list, and Player 1's profile (title screen). */
 public class SettingsScreen extends DebouncedScreen {
 	private final Screen parent;
 
@@ -27,8 +27,12 @@ public class SettingsScreen extends DebouncedScreen {
 		}).bounds(width / 2 - 100, y + 24, 200, 20).build());
 		addRenderableWidget(Button.builder(Component.literal("Players (" + Lobby.SLOTS.size() + ")"),
 				b -> minecraft.gui.setScreen(new LobbyScreen(this))).bounds(width / 2 - 100, y + 48, 200, 20).build());
+		Profiles.Profile p = Profiles.active();
+		Button profile = addRenderableWidget(Button.builder(Component.literal("Profile: " + (p == null ? "none" : Profiles.displayName(p))),
+				b -> minecraft.gui.setScreen(new ProfileSelectScreen(this))).bounds(width / 2 - 100, y + 72, 200, 20).build());
+		profile.active = minecraft.level == null;  // the name can only change outside a world
 		addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
-				.bounds(width / 2 - 100, y + 84, 200, 20).build());
+				.bounds(width / 2 - 100, y + 104, 200, 20).build());
 		setInitialFocus(layout);
 	}
 

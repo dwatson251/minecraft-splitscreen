@@ -30,6 +30,16 @@ fi
 "$HERE/mcss-setup.sh" "$HERE/mods" || exit 1
 [ "${1:-}" = --setup ] && exit 0
 
+# custom skins: ~/Documents/Minecraft Skins (easy to reach from Desktop Mode) mirrored to where the Prism flatpak
+# can read them; profiles themselves live in $PRISM/mcss-profiles and are kept
+SKINS_SRC="$HOME/Documents/Minecraft Skins"
+mkdir -p "$SKINS_SRC" "$PRISM/mcss-skins"
+find "$PRISM/mcss-skins" -maxdepth 1 -type f -name '*.png' | while read -r f; do
+	[ -f "$SKINS_SRC/$(basename "$f")" ] || rm -f "$f"
+done
+find "$SKINS_SRC" -maxdepth 1 -type f -iname '*.png' -exec cp -u {} "$PRISM/mcss-skins/" \;
+log "skins: $(find "$PRISM/mcss-skins" -maxdepth 1 -name '*.png' | wc -l) custom"
+
 # files the clients share (joined players, pad events, guest heartbeats); emptied so every session starts fresh
 CONTROL=$PRISM/mcss-control
 mkdir -p "$CONTROL" && rm -f "$CONTROL"/*

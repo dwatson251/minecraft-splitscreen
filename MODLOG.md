@@ -104,3 +104,23 @@
   ignored.
 - Desktop Mode: the Deck's D-pad moved P2's menu focus. That was Steam's arrow-key emulation reaching the focused nested window; A/B/X/Y are pad-only, so they did nothing. The tiler now keeps keyboard focus on Player 1's window (focusPlayer1 on tile and on windowActivated).
 - 2026-10-25: v0.4.0 released (layout setting, guests close on leaving, waiting screen, P1 keeps keyboard focus, mods refreshed each launch). User playtest: works well.
+
+## 2026-10-25, profiles (v0.5.0)
+- Every view starts on ProfileSelectScreen: a card row with Create first, the Microsoft account card (P1 only),
+  then the saved profiles in `<prism>/mcss-profiles/*.json`. Profiles in use elsewhere are locked
+  (`mcss-control/profile-<name>`, refreshed every second, stale after 10 s).
+- CreateProfileScreen: a skin picker (9 built-in skins x wide/slim, plus PNGs from
+  ~/Documents/Minecraft Skins, which AppRun mirrors to <prism>/mcss-skins because the flatpak can't see
+  Documents) and a name typed on an on-screen keyboard. EditProfileScreen changes the skin or deletes the profile.
+- Identity: UserMixin overrides Minecraft.getUser/getGameProfile with an offline profile for the name
+  (UUIDUtil.createOfflinePlayerUUID). With host auth off, each world keeps that profile's playerdata. Chat keys go
+  to EMPTY_KEY_MANAGER while playing as a profile.
+- Skins: PlayerInfoMixin.getSkin returns PlayerSkin.insecure(ResourceTexture(tex, tex), ...). Built-in textures
+  are textures/entity/player/<wide|slim>/<name>.png; custom ones are DynamicTextures at mcss:skins/<file>. The
+  card and preview are a front view drawn with blit (skin UV regions, outer layer on top).
+- The START lobby is no longer a boot gate: the first button on any pad is Player 1, START joins the others,
+  and a "press START to join" toast appears every 45 s while P1 is alone. LobbyScreen is now just the Players
+  list in Settings.
+- spectacle screenshots came back pure white (4 KB) while the screen was fine: the capture itself fails on this
+  boot. Ask the user what the screen shows instead.
+- User confirmed: works well.
