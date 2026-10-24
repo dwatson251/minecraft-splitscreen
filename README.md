@@ -32,8 +32,9 @@ P1 starts alone on **Press START to play**:
   controller.
 - Every other controller that presses START becomes the next player and gets its own view (about 30 s to load).
   That works on the start screen and at any time later in game, up to 4 players.
-- A new view shows "Press any button on your controller". After a couple of presses it finds its controller and
-  says "Controller found".
+- A new view shows **Waiting for Player 1's world…** (guests never see the menus) and "Press any button on your
+  controller". After a couple of presses it finds its controller. It joins Player 1's world as soon as it's
+  open, and **Cancel** closes that view.
 - Player 1 presses Continue, then opens or creates any world. The others join it as soon as it's open, and
   rejoin by themselves if P1 switches worlds.
 - **Players 2–4 leave** by leaving the world (Disconnect in their pause menu): their view closes straight away.

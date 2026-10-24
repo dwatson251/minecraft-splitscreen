@@ -15,6 +15,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -29,8 +30,8 @@ import org.slf4j.Logger;
 /**
  * Host: shows "Press START to play" (LobbyScreen) until Player 1's controller is known, adds a "Splitscreen"
  * settings button to its title screen and pause menu, and publishes whatever world it opens on LAN with authentication off, so offline-named guests can
- * join. Guest: whenever it sits on the title screen, waits for the host's port and joins; leaving the world while
- * the host's is still open shuts the guest down (its player has left). Every client: no pause
+ * join. Guest: never shows the menus; it waits on WaitingScreen for the host's port and joins; leaving the world
+ * while the host's is still open shuts the guest down (its player has left). Every client: no pause
  * on focus loss (only one tile has focus), guests muted so audio isn't doubled. Controllers: Lobby (host) and
  * GuestPad (guests).
  */
@@ -57,6 +58,14 @@ public class SplitscreenGlue implements ClientModInitializer {
 			ServerLifecycleEvents.SERVER_STOPPING.register(server -> Splitscreen.write("world", "closed"));
 		} else {
 			ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> leaveCheckAt = System.currentTimeMillis() + 300);
+			// guests never show the menus: the title screen and "disconnected" become "Waiting for Player 1's world"
+			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
+				if (screen instanceof TitleScreen || screen instanceof DisconnectedScreen) {
+					mc.execute(() -> {
+						if (mc.gui.screen() == screen) mc.gui.setScreen(new WaitingScreen());
+					});
+				}
+			});
 		}
 		if (Splitscreen.HOST) {
 			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
@@ -126,7 +135,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 			}
 			LOG.info("[mcss] host closed the world, waiting to rejoin");
 		}
-		if (!(mc.gui.screen() instanceof TitleScreen) || probing) return;
+		if (!(mc.gui.screen() instanceof WaitingScreen) || probing) return;
 		probing = true;
 		Thread t = new Thread(() -> {
 			while (!portOpen()) {
@@ -138,7 +147,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 			}
 			mc.execute(() -> {
 				probing = false;
-				if (!(mc.gui.screen() instanceof TitleScreen)) return;
+				if (!(mc.gui.screen() instanceof WaitingScreen)) return;
 				LOG.info("[mcss] joining 127.0.0.1:{}", Splitscreen.PORT);
 				ServerData data = new ServerData("Splitscreen", "127.0.0.1:" + Splitscreen.PORT, ServerData.Type.LAN);
 				ConnectScreen.startConnecting(mc.gui.screen(), mc, new ServerAddress("127.0.0.1", Splitscreen.PORT), data,

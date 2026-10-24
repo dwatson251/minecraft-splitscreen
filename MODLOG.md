@@ -96,3 +96,9 @@
   apart from the host closing or switching worlds, the host writes mcss-control/world = "open" (SERVER_STARTED)
   and "closed" (SERVER_STOPPING, which runs before players are kicked). A guest disconnected while it still says
   "open" calls mc.stop(). CLIENT_STOPPING writes left-P<n>, so the host frees the place and the rest move up.
+- Playtest (Deck + DualSense, launched from Steam): P2 matched its pad in 2 presses (score 2 vs -2), the
+  vertical layout toggled live, and P2 left the world -> "left the world, shutting this client down" and the
+  host logged "client P2 left (quit)".
+- Guests now show WaitingScreen ("Waiting for Player 1's world...", controller status, Cancel = mc.stop())
+  in place of TitleScreen and DisconnectedScreen (AFTER_INIT swap), and auto-join from there. Esc/back are
+  ignored.

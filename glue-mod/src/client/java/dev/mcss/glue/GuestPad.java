@@ -139,6 +139,11 @@ final class GuestPad {
 		}
 	}
 
+	/** The pad this guest found, or null while it's still waiting for its player to press something. */
+	static String controllerName() {
+		return mine == null ? null : mine.name();
+	}
+
 	/** Called when the guest shuts down: the host frees this player number. */
 	static void leave() {
 		Splitscreen.write("left-P" + Splitscreen.PLAYER, Long.toString(System.currentTimeMillis()));
