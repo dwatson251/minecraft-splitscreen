@@ -82,3 +82,13 @@
 - To launch the Steam shortcut over SSH in Desktop Mode: read the appid from userdata/*/config/shortcuts.vdf,
   then `steam steam://rungameid/$(( (appid << 32) | 0x02000000 ))`.
 - User confirmed it working: launched from Steam, Deck + DualSense.
+
+## 2026-10-24, layout setting
+- User asked for horizontal vs vertical, without blocking launch. Added a "Splitscreen" button (top left of
+  Player 1's title screen and pause menu) that opens SettingsScreen: Layout and Players (the lobby view). Saved
+  in the P1 instance's config/splitscreen.properties.
+- The layout reaches the KWin tiler through Player 1's window caption ("P1v ..." = vertical). That needs no new
+  IPC, and captionChanged already re-tiles. Layout maths checked in node: V2 = 640x800 x2, V3 = P1 640x800 left
+  + 2x 640x400 right.
+- Packaging bug: build/libs kept splitscreen-glue-0.1.0.jar after the version bump, and the AppImage shipped both
+  (Fabric refuses duplicate mods). The build script now copies only the current version. CI builds were clean.

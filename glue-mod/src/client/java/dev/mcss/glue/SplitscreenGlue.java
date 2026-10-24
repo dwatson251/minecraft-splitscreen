@@ -13,6 +13,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
@@ -23,8 +25,8 @@ import net.minecraft.sounds.SoundSource;
 import org.slf4j.Logger;
 
 /**
- * Host: shows "Press START to play" (LobbyScreen) on its first title screen, keeps a "Players: N" button on the
- * title screen, and publishes whatever world it opens on LAN with authentication off, so offline-named guests can
+ * Host: shows "Press START to play" (LobbyScreen) until Player 1's controller is known, adds a "Splitscreen"
+ * settings button to its title screen and pause menu, and publishes whatever world it opens on LAN with authentication off, so offline-named guests can
  * join. Guest: whenever it sits on the title screen, waits for the host's port and joins. Every client: no pause
  * on focus loss (only one tile has focus), guests muted so audio isn't doubled. Controllers: Lobby (host) and
  * GuestPad (guests).
@@ -46,16 +48,22 @@ public class SplitscreenGlue implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
 		if (Splitscreen.HOST) {
 			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
+				if (screen instanceof PauseScreen) Screens.getWidgets(screen).add(settingsButton(mc, screen));
 				if (screen instanceof TitleScreen title) {
 					// no menus before Player 1's controller is known: first boot, or Player 1's pad went away
 					if (CONTROLIFY && !Lobby.hostReady()) mc.execute(() -> {
 						if (mc.gui.screen() == title) mc.gui.setScreen(new LobbyScreen(title));
 					});
-					Screens.getWidgets(screen).add(Button.builder(Component.literal("Players: " + Lobby.SLOTS.size()),
-							b -> mc.gui.setScreen(new LobbyScreen(title))).bounds(4, 4, 100, 20).build());
+					Screens.getWidgets(screen).add(settingsButton(mc, screen));
 				}
 			});
 		}
+	}
+
+	/** Top-left "Splitscreen" button on Player 1's title screen and pause menu: layout and players. */
+	private static Button settingsButton(Minecraft mc, Screen screen) {
+		return Button.builder(Component.literal("Splitscreen"), b -> mc.gui.setScreen(new SettingsScreen(screen)))
+				.bounds(4, 4, 100, 20).build();
 	}
 
 	private void setOptions(Minecraft mc) {

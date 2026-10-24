@@ -1,19 +1,27 @@
 // Tiles Minecraft windows into a splitscreen grid, ordered by the "P<n> " caption prefix the glue mod sets.
-// 1 window: fullscreen. 2: top/bottom. 3: P1 across the top, P2/P3 below. 4: quadrants.
+// Player 1's caption also carries the layout picked in its Splitscreen settings: "P1 " horizontal, "P1v " vertical.
+// Horizontal: 2 = top/bottom, 3 = P1 across the top with P2/P3 below. Vertical: 2 = side by side, 3 = P1 down the
+// left with P2/P3 stacked on the right. 1 = fullscreen, 4 = quadrants either way.
 // Anything else (Prism Launcher progress or error dialogs) is kept above the game and centred.
 
 function playerIndex(w) {
-    var m = /^P(\d+) /.exec(w.caption);
+    var m = /^P(\d+)v? /.exec(w.caption);
     return m ? parseInt(m[1], 10) : -1;
 }
 
-function slots(n, a) {
+function vertical(wins) {
+    return wins.some(function (w) { return /^P1v /.test(w.caption); });
+}
+
+function slots(n, a, vert) {
     var hw = Math.floor(a.width / 2), hh = Math.floor(a.height / 2);
     var x = a.x, y = a.y, W = a.width, H = a.height;
     if (n <= 1) return [{x: x, y: y, width: W, height: H}];
+    if (n == 2 && vert) return [{x: x, y: y, width: hw, height: H}, {x: x + hw, y: y, width: W - hw, height: H}];
     if (n == 2) return [{x: x, y: y, width: W, height: hh}, {x: x, y: y + hh, width: W, height: H - hh}];
     var q = [{x: x, y: y, width: hw, height: hh}, {x: x + hw, y: y, width: W - hw, height: hh},
              {x: x, y: y + hh, width: hw, height: H - hh}, {x: x + hw, y: y + hh, width: W - hw, height: H - hh}];
+    if (n == 3 && vert) return [{x: x, y: y, width: hw, height: H}, q[1], q[3]];
     if (n == 3) return [{x: x, y: y, width: W, height: hh}, q[2], q[3]];
     return q;
 }
@@ -34,7 +42,7 @@ function tile() {
     });
     var wins = all.filter(function (w) { return playerIndex(w) >= 0; });
     wins.sort(function (a, b) { return playerIndex(a) - playerIndex(b); });
-    var s = slots(wins.length, area);
+    var s = slots(wins.length, area, vertical(wins));
     for (var i = 0; i < wins.length && i < s.length; i++) {
         var w = wins[i];
         w.noBorder = true;

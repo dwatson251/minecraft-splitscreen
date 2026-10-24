@@ -39,6 +39,11 @@ public final class Splitscreen {
 	 */
 	public static volatile int shown = PLAYER;
 
+	/** "P2 ", or for Player 1 "P1 " / "P1v " (the layout the tiler should use: v = vertical). */
+	public static String titlePrefix() {
+		return "P" + shown + (HOST && SplitSettings.vertical() ? "v" : "") + " ";
+	}
+
 	private Splitscreen() {}
 
 	/** The file's text, or null if it doesn't exist (or can't be read). */

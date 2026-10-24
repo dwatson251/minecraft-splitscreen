@@ -7,11 +7,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** "P2 Minecraft 26.3": the KWin tiler orders windows by this prefix (the shown player number). */
+/**
+ * "P2 Minecraft 26.3": the KWin tiler orders windows by this prefix (the shown player number). Player 1's title also
+ * carries the layout: "P1v ..." when vertical.
+ */
 @Mixin(Minecraft.class)
 public class MinecraftMixin {
 	@Inject(method = "createTitle", at = @At("RETURN"), cancellable = true)
 	private void mcss$playerTitle(CallbackInfoReturnable<String> cir) {
-		if (Splitscreen.ENABLED) cir.setReturnValue("P" + Splitscreen.shown + " " + cir.getReturnValue());
+		if (Splitscreen.ENABLED) cir.setReturnValue(Splitscreen.titlePrefix() + cir.getReturnValue());
 	}
 }

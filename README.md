@@ -4,7 +4,7 @@
 every player at once instead of focusing a single game window. Each player gets their own controller.
 
 How it works: the AppImage starts a nested KWin (already on SteamOS) as one window. Inside it, one Minecraft
-client per player is tiled: two players top/bottom, three with P1 across the top, four in quadrants. P1 uses your
+client per player is tiled: top/bottom or side by side (your choice), four in quadrants. P1 uses your
 Microsoft account. Whatever world P1 opens is shared on LAN, and P2–P4, offline guests `Player2`–`Player4`, join
 it automatically. A small Fabric mod (`glue-mod/`) does the joining, the window titles, the player-count screen
 and the controller assignment. Controlify handles the controller input itself.
@@ -40,7 +40,11 @@ P1 starts alone on **Press START to play**:
   goes on the end.
 - **Player 1 quitting ends the whole session** and closes the AppImage.
 - If a controller disconnects, its player keeps their place. START on any free controller reconnects them.
-- The **Players: N** button on P1's title screen shows who is playing with which controller.
+- The **Splitscreen** button (top left of Player 1's title screen and pause menu) opens Splitscreen settings:
+  - **Layout:** Horizontal (stacked: 2 players top/bottom; with 3, Player 1 across the top) or Vertical (side by
+    side: 2 players left/right; with 3, Player 1 down the left). 4 players are always quadrants. It switches
+    immediately and is remembered.
+  - **Players:** who is playing with which controller.
 
 Under Steam the clients read the real controllers, not Steam Input's virtual pads. Steam's virtual pads all look
 the same to the game, so they can't be told apart.

@@ -2,7 +2,6 @@ package dev.mcss.glue;
 
 import java.util.List;
 import java.util.Map;
-import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -13,17 +12,11 @@ import net.minecraft.network.chat.Component;
  * (START on any free pad, here or later in game); this screen only shows it, and Player 1 continues to the title
  * screen with A on Continue. Until Player 1's controller is known it can't be left (no Esc, no back button), so
  * the game never reaches the menus without knowing whose pad drives the host's view.
- *
- * In Desktop Mode one press can arrive twice (Controlify reading the pad, plus Steam's arrow-key emulation), so
- * focus moves are debounced: one step per DEBOUNCE_MS.
  */
-public class LobbyScreen extends Screen {
-	private static final long DEBOUNCE_MS = 200;
-
+public class LobbyScreen extends DebouncedScreen {
 	private final Screen parent;
 	private String shown = "";
 	private Button cont;
-	private long lastMove;
 
 	public LobbyScreen(Screen parent) {
 		super(Component.literal("Splitscreen"));
@@ -73,14 +66,6 @@ public class LobbyScreen extends Screen {
 	@Override
 	protected void setInitialFocus() {
 		if (cont != null && cont.active) setInitialFocus(cont);
-	}
-
-	@Override
-	protected void changeFocus(ComponentPath path) {
-		long now = System.currentTimeMillis();
-		if (now - lastMove < DEBOUNCE_MS) return;
-		lastMove = now;
-		super.changeFocus(path);
 	}
 
 	@Override

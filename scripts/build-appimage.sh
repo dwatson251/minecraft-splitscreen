@@ -17,7 +17,8 @@ APP=$ROOT/dist/AppDir
 rm -rf "$APP" && mkdir -p "$APP/mods"
 cp -r "$ROOT/appimage/AppRun" "$ROOT/appimage/mcss-setup.sh" "$ROOT/appimage/kwin" "$APP/"
 cp "$ROOT"/dist/mods/*.jar "$APP/mods/"
-cp "$ROOT"/glue-mod/build/libs/splitscreen-glue-*.jar "$APP/mods/"
+# only this version's jar: build/libs keeps old ones, and Fabric refuses to load a mod twice
+cp "$ROOT/glue-mod/build/libs/splitscreen-glue-$(sed -n 's/^version=//p' "$ROOT/glue-mod/gradle.properties").jar" "$APP/mods/"
 cat > "$APP/minecraft-splitscreen.desktop" <<DESK
 [Desktop Entry]
 Type=Application
