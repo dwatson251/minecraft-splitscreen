@@ -55,3 +55,30 @@
   published and Player2 auto-joined in 6 s.
 - Screenshots of the Deck desktop over SSH: `spectacle -b -n -f -o /tmp/x.png` with WAYLAND_DISPLAY=wayland-0,
   XDG_RUNTIME_DIR and the session bus set.
+
+## 2026-10-24, "Press START to play" (v0.3.0)
+- Bug: two PS4 pads over Bluetooth misbehaved. The real cause: the same physical pad has a different Controlify
+  uid and SDL GUID in each client (one HIDAPI GUID `...0000 6800`, one evdev GUID `...1181 0000`, depending on how
+  SDL found it), so uid-keyed claim files couldn't stop two clients taking one pad. Pad identity doesn't carry
+  between processes.
+- Redesign (user's idea): P1 runs a lobby (Lobby + LobbyScreen) and watches every pad (PadEdges; Controlify
+  polls inactive pads too). START on a free pad joins (a pad that disconnected first, then a free client P2-P4)
+  and is written to mcss-control/slots.
+  - P1 publishes each joined player's button presses with timestamps in mcss-control/events. Each guest
+    (GuestPad) scores its local pads by matching presses (+-1 within 250 ms), takes the one leading by 2 and
+    drops it at -3.
+  - Guests write alive-P<n> and left-P<n>. AppRun launches per join generation and never relaunches a guest that
+    quit.
+- User's rules: P1 is permanent and quitting it ends everything (moving the host over would mean moving the
+  world and losing the MSA account). Guests move up when one leaves: the shown number is the place in the slots
+  list, put in the window title, so the tiler re-sorts. The lobby can't be left until Player 1's pad is known.
+- Bug: under Steam, quitting P1 left the window up. AppRun killed dbus-run-session, which doesn't forward
+  signals, so the nested kwin_wayland lived on. `systemctl --user stop` (my test harness) killed the whole cgroup
+  and hid it. Fix: track kwin_wayland's own PID (`pgrep -P $SESSION`). The user confirmed the window closes.
+- Bug: one START on the Deck joined two players ("Steam Deck" + "Steam Controller"). Steam sets
+  SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=1, which lets its virtual pads past the ignore list. Fix: set it
+  to 0 for the clients, plus a 28de:11ff filter in PadEdges. Steam's own SDL ignore list (792 entries) includes
+  the Deck (28de:1205) and PS4 (054c:09cc), which is why the game only saw virtual pads before.
+- To launch the Steam shortcut over SSH in Desktop Mode: read the appid from userdata/*/config/shortcuts.vdf,
+  then `steam steam://rungameid/$(( (appid << 32) | 0x02000000 ))`.
+- User confirmed it working: launched from Steam, Deck + DualSense.

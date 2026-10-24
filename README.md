@@ -27,17 +27,20 @@ The first launch creates Prism instances `P1`–`P4` (Minecraft 26.3 + Fabric + 
 accounts, and Prism downloads Minecraft and Java 25. `--setup` repeats that step, for example after an update.
 
 ## Players and controllers
-P1 starts alone and asks **How many players?** (1–4). Pick with the Deck's controls; the other players' views
-start one after another. The **Players: N** button at the top left of P1's title screen changes the count later
-(lowering it closes the extra views). Then open or create any world as P1; the others join as soon as it's open,
-and rejoin by themselves if P1 switches worlds.
-
-Controllers are detected automatically:
-- The Deck's own controls belong to P1, and other pads go to P2, P3, P4 in the order they're found.
-- A player without a controller sees "Connect a controller to play". A pad plugged in later goes to the
-  lowest-numbered player still waiting.
-- If a pad disconnects, its player takes the next free one.
-- Pads keep working while another player's view has focus.
+P1 starts alone on **Press START to play**:
+- The first controller to press START is Player 1. The game doesn't go on to the menus until it knows Player 1's
+  controller.
+- Every other controller that presses START becomes the next player and gets its own view (about 30 s to load).
+  That works on the start screen and at any time later in game, up to 4 players.
+- A new view shows "Press any button on your controller". After a couple of presses it finds its controller and
+  says "Controller found".
+- Player 1 presses Continue, then opens or creates any world. The others join it as soon as it's open, and
+  rejoin by themselves if P1 switches worlds.
+- **Players 2–4 leave** with Quit Game in their own menu. The players after them move up a place, and a new join
+  goes on the end.
+- **Player 1 quitting ends the whole session** and closes the AppImage.
+- If a controller disconnects, its player keeps their place. START on any free controller reconnects them.
+- The **Players: N** button on P1's title screen shows who is playing with which controller.
 
 Under Steam the clients read the real controllers, not Steam Input's virtual pads. Steam's virtual pads all look
 the same to the game, so they can't be told apart.

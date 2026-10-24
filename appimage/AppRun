@@ -3,9 +3,9 @@
 # tiles 1-4 Minecraft clients, one per controller.
 #   MinecraftSplitscreen.AppImage            start
 #   MinecraftSplitscreen.AppImage --setup    (re)create the Prism instances and offline accounts, then exit
-# P1 starts alone and asks how many players (Players: N on its title screen changes it later); this script starts
-# or stops P2-P4 to match. P1 opens any world, which is shared on LAN; the others join it automatically.
-# Controllers are matched to players automatically by the glue mod, including ones plugged in later.
+# P1 starts alone with "Press START to play": every controller that presses START becomes the next player (first
+# = P1), also later in game, and this script starts that player's view (P2-P4). A guest that quits frees its
+# place. P1 opens any world, which is shared on LAN; the others join it automatically.
 # Logs: ~/.local/state/mc-splitscreen/
 set -u
 HERE=$(dirname "$(readlink -f "$0")")
@@ -30,10 +30,11 @@ if [ "${1:-}" = --setup ] || [ ! -d "$PRISM/instances/P4" ]; then
 	[ "${1:-}" = --setup ] && exit 0
 fi
 
-# the player count P1 picks; cleared so every session starts with the question
+# files the clients share (joined players, pad events, guest heartbeats); emptied so every session starts fresh
 CONTROL=$PRISM/mcss-control
-mkdir -p "$CONTROL" && rm -f "$CONTROL/players"
-log "start (Steam: ${SteamGamepadUI:+Game Mode}${SteamGamepadUI:-no}; SDL ignore list from Steam: ${SDL_GAMECONTROLLER_IGNORE_DEVICES:--})"
+mkdir -p "$CONTROL" && rm -f "$CONTROL"/*
+STEAM_IGNORED=${SDL_GAMECONTROLLER_IGNORE_DEVICES:-}
+log "start (Game Mode: ${SteamGamepadUI:-no}; Steam app: ${SteamAppId:-none}; Steam's SDL ignore list: $(tr ',' '\n' <<< "$STEAM_IGNORED" | grep -c .) devices, replaced)"
 
 MSA=$(python3 -c 'import json,sys
 a=json.load(open(sys.argv[1]))["accounts"]
@@ -65,17 +66,25 @@ rm -f "$XDG_RUNTIME_DIR/$SOCKET" "$XDG_RUNTIME_DIR/$SOCKET.lock"
 env -u LD_PRELOAD XDG_CONFIG_HOME="$KW/config" XDG_DATA_HOME="$KW/data" QT_FORCE_STDERR_LOGGING=1 \
 	dbus-run-session -- kwin_wayland "${BACKEND[@]}" --width "$W" --height "$H" --socket "$SOCKET" \
 	> "$STATE/kwin.log" 2>&1 &
-KWIN=$!
+SESSION=$!   # dbus-run-session; it doesn't pass signals on, so KWin itself is tracked and stopped by its own PID
 for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$SOCKET" ] && break; sleep 0.2; done
-[ -S "$XDG_RUNTIME_DIR/$SOCKET" ] || { log "nested KWin did not start, see $STATE/kwin.log"; kill "$KWIN"; exit 1; }
+KWIN=$(pgrep -P "$SESSION" -x kwin_wayland | head -1)
+if [ ! -S "$XDG_RUNTIME_DIR/$SOCKET" ] || [ -z "$KWIN" ]; then
+	log "nested KWin did not start, see $STATE/kwin.log"
+	[ -n "$KWIN" ] && kill "$KWIN"
+	kill "$SESSION" 2>/dev/null
+	exit 1
+fi
 log "nested KWin pid $KWIN on $SOCKET (${W}x${H}, ${BACKEND[0]})"
 
 teardown() {
 	trap - EXIT INT TERM HUP
 	log "stopping"
 	prism_running && flatpak kill "$PRISM_APP"
+	# a leftover KWin keeps the window open, and Steam would think the game is still running
 	kill "$KWIN" 2>/dev/null
-	wait "$KWIN" 2>/dev/null
+	wait "$SESSION" 2>/dev/null
+	kill -0 "$KWIN" 2>/dev/null && { sleep 2; kill -KILL "$KWIN" 2>/dev/null; }
 	exit 0
 }
 trap teardown EXIT INT TERM HUP
@@ -86,7 +95,10 @@ trap teardown EXIT INT TERM HUP
 # virtual pads (Valve 28de:11ff) and read the real devices, as outside Steam. Steam's 32-bit overlay preload only
 # spams errors in the 64-bit children. Prism (Qt) is pinned to Wayland: Game Mode's session sets
 # QT_QPA_PLATFORM=xcb, and X11 is hidden from the clients.
-PAD_ENV=(SDL_GAMECONTROLLER_IGNORE_DEVICES=0x28DE/0x11FF SDL_JOYSTICK_IGNORE_DEVICES=0x28DE/0x11FF)
+# Steam also sets SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=1, which lets its virtual pads past any ignore
+# list: the Deck then showed up twice (itself and its virtual pad), and one START joined two players.
+PAD_ENV=(SDL_GAMECONTROLLER_IGNORE_DEVICES=0x28DE/0x11FF SDL_JOYSTICK_IGNORE_DEVICES=0x28DE/0x11FF
+	SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=0)
 prism() {
 	env -u DISPLAY -u LD_PRELOAD -u SteamVirtualGamepadInfo -u SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT \
 		WAYLAND_DISPLAY="$SOCKET" SDL_VIDEODRIVER=wayland QT_QPA_PLATFORM=wayland "${PAD_ENV[@]}" \
@@ -107,29 +119,36 @@ for _ in $(seq 120); do [ -n "$(mc_pid 1)" ] && break; sleep 1; done
 [ -n "$(mc_pid 1)" ] || { log "P1 did not start, see $STATE/prism.log"; exit 1; }
 log "P1 java pid $(mc_pid 1)"
 
-# --- match the running guests to the count P1 picks, until P1 quits or the compositor goes away ---
-declare -A LAUNCHED=()   # player -> when its launch was requested (a client takes a while to show up as java)
+# --- run the guests P1's lobby has joined (slots: "<player> <join time>"), until P1 quits (that ends the whole
+# session, guests included) or KWin goes away ---
+declare -A ASKED=()   # player -> the join it was last launched for
+declare -A ASKED_AT=()
+declare -A SEEN=()    # player -> the join it was seen running for (gone afterwards = the guest quit)
 LAST_LAUNCH=0
 while kill -0 "$KWIN" 2>/dev/null && [ -n "$(mc_pid 1)" ]; do
-	want=$(cat "$CONTROL/players" 2>/dev/null)
-	[[ "$want" =~ ^[1-4]$ ]] || want=1
+	declare -A WANT=()
+	while read -r n gen; do [[ "$n" =~ ^[2-4]$ ]] && WANT[$n]=$gen; done 2>/dev/null < "$CONTROL/slots"
 	now=$(date +%s)
 	for n in 2 3 4; do
 		pid=$(mc_pid "$n")
-		if [ "$n" -le "$want" ] && [ -z "$pid" ]; then
-			# one launch at a time: loading several clients at once starves the Deck's 4 cores
-			if [ $((now - ${LAUNCHED[$n]:-0})) -gt 120 ] && [ $((now - LAST_LAUNCH)) -ge "${MCSS_STAGGER:-8}" ]; then
-				log "starting P$n (players: $want)"
-				prism -l "P$n" -a "Player$n"
-				LAUNCHED[$n]=$now; LAST_LAUNCH=$now
+		gen=${WANT[$n]:-}
+		if [ -n "$gen" ] && [ -n "$pid" ]; then
+			SEEN[$n]=$gen
+		elif [ -n "$gen" ] && [ "${SEEN[$n]:-}" != "$gen" ]; then
+			# a new join: one launch at a time (several clients loading at once starve the Deck's 4 cores), and
+			# retry if the window hasn't come up after two minutes
+			if [ "${ASKED[$n]:-}" != "$gen" ] || [ $((now - ${ASKED_AT[$n]:-0})) -gt 120 ]; then
+				if [ $((now - LAST_LAUNCH)) -ge "${MCSS_STAGGER:-8}" ]; then
+					log "starting P$n (joined $gen)"
+					prism -l "P$n" -a "Player$n"
+					ASKED[$n]=$gen; ASKED_AT[$n]=$now; LAST_LAUNCH=$now
+				fi
 			fi
-		elif [ "$n" -gt "$want" ] && [ -n "$pid" ]; then
-			log "stopping P$n (players: $want), java pid $pid"
+		elif [ -z "$gen" ] && [ -n "$pid" ]; then
+			log "stopping P$n (no longer joined), java pid $pid"
 			kill "$pid"
-			LAUNCHED[$n]=0
-		elif [ -n "$pid" ]; then
-			LAUNCHED[$n]=0
 		fi
 	done
+	unset WANT
 	sleep 2
 done

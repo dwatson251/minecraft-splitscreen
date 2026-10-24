@@ -23,31 +23,36 @@ import net.minecraft.sounds.SoundSource;
 import org.slf4j.Logger;
 
 /**
- * Host: asks for the player count on its first title screen, keeps a "Players: N" button on the title screen, and
- * publishes whatever world it opens on LAN with authentication off, so offline-named guests can join. Guest:
- * whenever it sits on the title screen, waits for the host's port and joins. Every client: no pause on focus loss (only one tile has focus), guests muted so audio isn't doubled.
+ * Host: shows "Press START to play" (LobbyScreen) on its first title screen, keeps a "Players: N" button on the
+ * title screen, and publishes whatever world it opens on LAN with authentication off, so offline-named guests can
+ * join. Guest: whenever it sits on the title screen, waits for the host's port and joins. Every client: no pause
+ * on focus loss (only one tile has focus), guests muted so audio isn't doubled. Controllers: Lobby (host) and
+ * GuestPad (guests).
  */
 public class SplitscreenGlue implements ClientModInitializer {
 	public static final Logger LOG = LogUtils.getLogger();
 	private static final boolean CONTROLIFY = FabricLoader.getInstance().isModLoaded("controlify");
 
-	private boolean askedPlayers;
+	private boolean padsFailed;
 	private volatile boolean probing;
 
 	@Override
 	public void onInitializeClient() {
 		if (!Splitscreen.ENABLED) return;
-		LOG.info("[mcss] P{} pad {} {} port {}", Splitscreen.PLAYER, Splitscreen.PAD,
+		LOG.info("[mcss] P{} {} port {}", Splitscreen.PLAYER,
 				Splitscreen.HOST ? "host" : "guest", Splitscreen.PORT);
 		ClientLifecycleEvents.CLIENT_STARTED.register(this::setOptions);
+		if (!Splitscreen.HOST && CONTROLIFY) ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> GuestPad.leave());
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
 		if (Splitscreen.HOST) {
 			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
 				if (screen instanceof TitleScreen title) {
-					int n = Splitscreen.players();
-					Screens.getWidgets(screen).add(Button.builder(
-							Component.literal("Players: " + (n == 0 ? "?" : n)),
-							b -> mc.gui.setScreen(new PlayerCountScreen(title))).bounds(4, 4, 100, 20).build());
+					// no menus before Player 1's controller is known: first boot, or Player 1's pad went away
+					if (CONTROLIFY && !Lobby.hostReady()) mc.execute(() -> {
+						if (mc.gui.screen() == title) mc.gui.setScreen(new LobbyScreen(title));
+					});
+					Screens.getWidgets(screen).add(Button.builder(Component.literal("Players: " + Lobby.SLOTS.size()),
+							b -> mc.gui.setScreen(new LobbyScreen(title))).bounds(4, 4, 100, 20).build());
 				}
 			});
 		}
@@ -64,7 +69,16 @@ public class SplitscreenGlue implements ClientModInitializer {
 	}
 
 	private void tick(Minecraft mc) {
-		if (CONTROLIFY) ControlifyPin.tick();
+		if (CONTROLIFY) {
+			try {
+				if (Splitscreen.HOST) Lobby.tick();
+				else GuestPad.tick();
+			} catch (RuntimeException e) {
+				// never take the game down over controller bookkeeping
+				if (!padsFailed) LOG.error("[mcss] controller handling failed", e);
+				padsFailed = true;
+			}
+		}
 		if (Splitscreen.HOST) tickHost(mc);
 		else tickGuest(mc);
 	}
@@ -77,14 +91,6 @@ public class SplitscreenGlue implements ClientModInitializer {
 			LOG.info("[mcss] published '{}' on port {}: {}", server.getWorldData().getLevelName(), Splitscreen.PORT, ok);
 			// publishing can fail if the port is taken; don't retry every tick
 			if (!ok) server.setUsesAuthentication(true);
-		}
-		// first title screen of the session: P1 picks how many players before anyone else starts
-		if (!askedPlayers && mc.gui.screen() instanceof TitleScreen title) {
-			askedPlayers = true;
-			if (Splitscreen.players() == 0) {
-				LOG.info("[mcss] asking for the player count");
-				mc.gui.setScreen(new PlayerCountScreen(title));
-			}
 		}
 	}
 
