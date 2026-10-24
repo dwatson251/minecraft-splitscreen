@@ -3,6 +3,8 @@
 // Horizontal: 2 = top/bottom, 3 = P1 across the top with P2/P3 below. Vertical: 2 = side by side, 3 = P1 down the
 // left with P2/P3 stacked on the right. 1 = fullscreen, 4 = quadrants either way.
 // Anything else (Prism Launcher progress or error dialogs) is kept above the game and centred.
+// Keyboard focus always stays on Player 1's view: in Desktop Mode Steam also sends the Deck's D-pad as arrow keys,
+// which must not move another player's menus. Guests read their pads directly and don't need focus.
 
 function playerIndex(w) {
     var m = /^P(\d+)v? /.exec(w.caption);
@@ -24,6 +26,11 @@ function slots(n, a, vert) {
     if (n == 3 && vert) return [{x: x, y: y, width: hw, height: H}, q[1], q[3]];
     if (n == 3) return [{x: x, y: y, width: W, height: hh}, q[2], q[3]];
     return q;
+}
+
+function focusPlayer1(wins) {
+    var p1 = wins.filter(function (w) { return playerIndex(w) == 1; })[0];
+    if (p1 && workspace.activeWindow !== p1) workspace.activeWindow = p1;
 }
 
 var busy = false;
@@ -50,6 +57,7 @@ function tile() {
         if (w.maximizable) w.setMaximize(false, false);
         w.frameGeometry = s[i];
     }
+    focusPlayer1(wins);
     console.log("mcss-tile: " + wins.map(function (w, i) {
         var g = w.frameGeometry;
         return w.caption + "@" + g.x + "," + g.y + " " + g.width + "x" + g.height;
@@ -67,6 +75,10 @@ function watch(w) {
 }
 
 workspace.windowAdded.connect(function (w) { watch(w); tile(); });
+workspace.windowActivated.connect(function (w) {
+    // another player's view (or a click) took focus: hand it back to Player 1
+    if (w && playerIndex(w) > 1) focusPlayer1(workspace.windowList());
+});
 workspace.windowRemoved.connect(tile);
 workspace.virtualScreenGeometryChanged.connect(tile);
 workspace.windowList().forEach(watch);

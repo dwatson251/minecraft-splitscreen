@@ -102,3 +102,4 @@
 - Guests now show WaitingScreen ("Waiting for Player 1's world...", controller status, Cancel = mc.stop())
   in place of TitleScreen and DisconnectedScreen (AFTER_INIT swap), and auto-join from there. Esc/back are
   ignored.
+- Desktop Mode: the Deck's D-pad moved P2's menu focus. That was Steam's arrow-key emulation reaching the focused nested window; A/B/X/Y are pad-only, so they did nothing. The tiler now keeps keyboard focus on Player 1's window (focusPlayer1 on tile and on windowActivated).
