@@ -6,7 +6,7 @@
 # OUT=<file> names the AppImage (default dist/MinecraftSplitscreen-x86_64.AppImage).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-JDK=$(ls -d "$ROOT"/.tools/jdk-25* 2>/dev/null | head -1)
+JDK=$(ls -d "$ROOT"/.tools/jdk-25* 2>/dev/null | head -1 || true)
 JDK=${JDK:-${JAVA_HOME:-}}
 [ -n "$JDK" ] || { echo "set JAVA_HOME to a JDK 25, or unpack one in .tools/ (see README)"; exit 1; }
 OUT=${OUT:-$ROOT/dist/MinecraftSplitscreen-x86_64.AppImage}

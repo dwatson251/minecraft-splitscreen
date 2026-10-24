@@ -21,3 +21,14 @@
   (offline) joined in 6 s, tiler 1280x400 top/bottom. Outside Steam, SDL saw the raw pads (DualSense SDL-1, Steam
   Deck SDL-2). User confirmed that each pad moves only its own player, including while unfocused.
 - Pad order: Steam Deck first, then discovery order.
+- Packaged AppImage, 2 players: Deck pad -> P1, DualSense -> P2, existing world reopened, P2 joined. About 7.3 GB RAM
+  in use with 2 clients, 8.1 GB with 3.
+- User asked for automatic controller detection and a player count from launch options (default 2). Claims are
+  files in <prism>/mcss-pads/P<n> (timestamp + uid, stale after 5 s); a lower player number wins a conflict;
+  players without a pad get a toast.
+- Bug: a client with no claim kept the pad Controlify picked at startup (DualSense drove both P2 and P3). Fix:
+  setCurrentController(null) and clear profile.controllerUid. My fix then crashed P1 by calling getActiveProfile
+  before Controlify discovered controllers ("No active Controlify profile"). Fix: skip until
+  getControllerManager() is present, and wrap the tick in try/catch. User confirmed: DualSense -> P2 only,
+  P3 idle with the toast. Replug -> P2 again.
+- GitHub: dwatson251/minecraft-splitscreen. The HTTPS gh token lacks the `workflow` scope, so the remote uses SSH.
