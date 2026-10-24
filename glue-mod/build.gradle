@@ -8,6 +8,15 @@ repositories {
 
 loom {
 	splitEnvironmentSourceSets()
+	runs {
+		// dev client laid out like a Prism instance (P1), so the shared mcss-* folders resolve as on the Deck.
+		// MCSS_DEV_SHOTS=<folder> ./gradlew runClient takes the README screenshots (see DevShots)
+		client {
+			runDir "../.tools/dev/instances/P1/minecraft"
+			programArgs "--width", "1280", "--height", "720"
+			vmArgs "--enable-native-access=ALL-UNNAMED"
+		}
+	}
 	mods {
 		"splitscreen-glue" {
 			sourceSet sourceSets.main

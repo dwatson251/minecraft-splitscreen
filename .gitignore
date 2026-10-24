@@ -5,3 +5,4 @@ dist/
 *.AppImage
 run/
 build.log
+runclient.log

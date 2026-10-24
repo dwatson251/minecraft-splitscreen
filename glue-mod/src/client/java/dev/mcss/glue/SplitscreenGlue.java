@@ -102,6 +102,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 	}
 
 	private void tick(Minecraft mc) {
+		DevShots.tick(mc);
 		if (CONTROLIFY) {
 			Profiles.tick();
 			try {

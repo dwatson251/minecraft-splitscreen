@@ -161,7 +161,7 @@ public class ProfileSelectScreen extends DebouncedScreen {
 		final Profiles.Profile profile;
 
 		Card(Profiles.Profile profile, int y) {
-			super(0, y, CARD_W, CARD_H, Component.literal(profile == CREATE ? "Create profile" : Profiles.displayName(profile)));
+			super(0, y, CARD_W, CARD_H, Component.literal(profile == CREATE ? "New profile" : Profiles.displayName(profile)));
 			this.profile = profile;
 		}
 

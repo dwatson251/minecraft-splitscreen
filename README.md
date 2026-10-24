@@ -4,10 +4,12 @@
 every player at once instead of focusing a single game window. Each player gets their own controller.
 
 How it works: the AppImage starts a nested KWin (already on SteamOS) as one window. Inside it, one Minecraft
-client per player is tiled: top/bottom or side by side (your choice), four in quadrants. P1 uses your
-Microsoft account. Whatever world P1 opens is shared on LAN, and P2–P4, offline guests `Player2`–`Player4`, join
-it automatically. A small Fabric mod (`glue-mod/`) does the joining, the window titles, the player-count screen
-and the controller assignment. Controlify handles the controller input itself.
+client per player is tiled: top/bottom or side by side (your choice), four in quadrants. Each player picks a
+profile (name and skin). Whatever world Player 1 opens is shared on LAN, and Players 2–4 join it automatically.
+A small Fabric mod (`glue-mod/`) does the joining, the profiles, the window titles and the controller
+assignment. Controlify handles the controller input itself.
+
+![Choosing a profile: New profile first, Player 1's Microsoft account, then saved profiles; Bob is in use by another player](docs/screenshots/profiles.png)
 
 ## Requirements
 - Steam Deck (SteamOS 3.8+), or any Linux desktop with KWin 6.
@@ -38,6 +40,10 @@ Every view starts by asking **Choose your profile**: Player 1 before the main me
   profile's inventory under its name. Inventories are per world, as in normal Minecraft.
 - Player 1 can switch profile from **Splitscreen → Profile** on the title screen.
 
+| Creating a profile | The profile in game |
+| --- | --- |
+| ![Skin picker with a big preview, classic/slim arms, and the on-screen keyboard](docs/screenshots/create-profile.png) | ![Player 1 playing as the profile "Alice", seen from the front](docs/screenshots/in-game.png) |
+
 ## Players and controllers
 P1 starts alone:
 - The first controller to press any button is Player 1. The game doesn't go on to the menus until it knows Player
@@ -47,11 +53,11 @@ P1 starts alone:
 - A new view shows **Waiting for Player 1's world…** (guests never see the menus) and "Press any button on your
   controller". After a couple of presses it finds its controller. It joins Player 1's world as soon as it's
   open, and **Cancel** closes that view.
-- Player 1 presses Continue, then opens or creates any world. The others join it as soon as it's open, and
-  rejoin by themselves if P1 switches worlds.
+- Player 1 opens or creates any world. The others join it as soon as it's open, and rejoin by themselves if
+  Player 1 switches worlds.
 - **Players 2–4 leave** by leaving the world (Disconnect in their pause menu): their view closes straight away.
-  When Player 1 closes or switches worlds, the others stay and rejoin the next one. The players after them move up a place, and a new join
-  goes on the end.
+  The players after them move up a place, and a new join goes on the end. When Player 1 closes or switches
+  worlds, the others stay and rejoin the next one.
 - **Player 1 quitting ends the whole session** and closes the AppImage.
 - If a controller disconnects, its player keeps their place. START on any free controller reconnects them.
 - The **Splitscreen** button (top left of Player 1's title screen and pause menu) opens Splitscreen settings:
@@ -59,6 +65,13 @@ P1 starts alone:
     side: 2 players left/right; with 3, Player 1 down the left). 4 players are always quadrants. It switches
     immediately and is remembered.
   - **Players:** who is playing with which controller.
+
+| A guest waiting for the world | Splitscreen settings | Player 1's pause menu |
+| --- | --- | --- |
+| ![Player 2 (profile Kai) waiting for Player 1's world, with Cancel](docs/screenshots/waiting.png) | ![Splitscreen settings: layout, players, profile](docs/screenshots/settings.png) | ![Pause menu with the Splitscreen button at the top left](docs/screenshots/pause-menu.png) |
+
+The screenshots come from one desktop window (`MCSS_DEV_SHOTS=<folder> ./gradlew runClient` in `glue-mod/`,
+see `DevShots.java`). On the Deck the same screens fill each player's part of the split screen.
 
 Under Steam the clients read the real controllers, not Steam Input's virtual pads. Steam's virtual pads all look
 the same to the game, so they can't be told apart.

@@ -124,3 +124,11 @@
 - spectacle screenshots came back pure white (4 KB) while the screen was fine: the capture itself fails on this
   boot. Ask the user what the screen shows instead.
 - User confirmed: works well.
+- README screenshots: taken locally under WSLg (the Deck's spectacle captures came back white). Loom's client run
+  uses runDir ../.tools/dev/instances/P1/minecraft, so the shared mcss-* folders resolve like a Prism instance.
+  With MCSS_PLAYER=1 MCSS_DEV_SHOTS=<dir>, DevShots walks profiles -> create -> settings -> waiting -> world
+  (third person front) -> pause menu, saves each via Screenshot.takeScreenshot(gameRenderer.mainRenderTarget()),
+  and quits. It also stands in for "P1 has a pad".
+  - The first try caught the Mojang loading overlay, so DevShots now waits for gui.overlay() == null.
+  - The screenshots exposed real label truncation: the "ABC"/"Del" keys became "AB"/"<", and the "Create
+    profile" card became "New profile".

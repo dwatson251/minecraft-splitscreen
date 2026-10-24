@@ -17,6 +17,7 @@ public class CreateProfileScreen extends SkinScreen {
 	private Button create;
 	private boolean shift = true;
 	private String problem = "";
+	private String pendingDevName;
 
 	public CreateProfileScreen(ProfileSelectScreen parent) {
 		super(Component.literal("New profile"), Skins.DEFAULT, false);
@@ -34,7 +35,7 @@ public class CreateProfileScreen extends SkinScreen {
 		name = addRenderableWidget(new EditBox(font, kx, y0 + 14, kw, 18, Component.literal("Name")));
 		name.setMaxLength(16);
 		name.setHint(Component.literal("Name"));
-		name.setValue(typed);
+		name.setValue(pendingDevName != null ? pendingDevName : typed);
 		name.setResponder(this::typed);
 		int ky = y0 + 38;
 		Button first = null;
@@ -55,8 +56,9 @@ public class CreateProfileScreen extends SkinScreen {
 	}
 
 	private Component keyLabel(char key) {
-		if (key == '^') return Component.literal(shift ? "ABC" : "abc");
-		if (key == '<') return Component.literal("Del");
+		// keys are 16 px wide: two characters at most
+		if (key == '^') return Component.literal(shift ? "AB" : "ab");
+		if (key == '<') return Component.literal("<");
 		return Component.literal(String.valueOf(shift ? key : Character.toLowerCase(key)));
 	}
 
@@ -105,6 +107,12 @@ public class CreateProfileScreen extends SkinScreen {
 		if (!problem.isEmpty() && create != null) {
 			g.text(font, problem, create.getX(), create.getY() + 24, 0xFFFF8080);
 		}
+	}
+
+	/** DevShots: show a typed name. */
+	void devName(String n) {
+		if (name != null) name.setValue(n);
+		pendingDevName = n;
 	}
 
 	@Override
