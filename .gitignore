@@ -1,0 +1,7 @@
+.tools/
+build/
+.gradle/
+dist/
+*.AppImage
+run/
+build.log

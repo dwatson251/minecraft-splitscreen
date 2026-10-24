@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "mcss-tile",
+        "Name": "Minecraft splitscreen tiler",
+        "Description": "Tiles Minecraft windows titled 'P<n> ...' into a splitscreen grid",
+        "Version": "1.0",
+        "License": "MIT"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js",
+    "KPackageStructure": "KWin/Script"
+}

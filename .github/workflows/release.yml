@@ -1,0 +1,53 @@
+# Builds the AppImage on every push and pull request; on a v* tag, also publishes it as a GitHub release.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install pillow
+
+      - name: Fetch mods from Modrinth
+        run: scripts/fetch-mods.sh
+
+      - name: Build AppImage
+        run: |
+          NAME=MinecraftSplitscreen-${GITHUB_REF_NAME//\//-}-x86_64.AppImage
+          [[ "$GITHUB_REF" == refs/tags/* ]] || NAME=MinecraftSplitscreen-${GITHUB_SHA::7}-x86_64.AppImage
+          OUT=$PWD/dist/$NAME scripts/build-appimage.sh
+          echo "APPIMAGE=dist/$NAME" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: ${{ env.APPIMAGE }}
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.APPIMAGE }}
+          generate_release_notes: true

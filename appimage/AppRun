@@ -1,0 +1,119 @@
+#!/bin/bash
+# Minecraft splitscreen for the Steam Deck: one window (what Game Mode / gamescope shows) holding a nested KWin that
+# tiles 1-4 Minecraft clients, one per controller. P1 hosts a LAN world, the others join it.
+#   MinecraftSplitscreen.AppImage            2 players
+#   MinecraftSplitscreen.AppImage 3          3 players (1-4); in Steam: launch options "%command% 3"
+#   MinecraftSplitscreen.AppImage auto       one player per connected controller (1-4)
+#   MinecraftSplitscreen.AppImage --setup    (re)create the Prism instances and offline accounts, then exit
+# MCSS_PLAYERS=<1-4|auto> does the same as the argument (Steam: "MCSS_PLAYERS=3 %command%").
+# Controllers are matched to players automatically by the glue mod, including ones plugged in later.
+# Logs: ~/.local/state/mc-splitscreen/
+set -u
+HERE=$(dirname "$(readlink -f "$0")")
+STATE=${XDG_STATE_HOME:-$HOME/.local/state}/mc-splitscreen
+PRISM_APP=org.prismlauncher.PrismLauncher
+PRISM=${MCSS_PRISM_DIR:-$HOME/.var/app/$PRISM_APP/data/PrismLauncher}
+SOCKET=mcss-wayland-0
+mkdir -p "$STATE"
+exec >> "$STATE/apprun.log" 2>&1
+log() { echo "[mcss $(date +%T)] $*"; }
+
+prism_running() { flatpak ps --columns=application 2>/dev/null | grep -qx "$PRISM_APP"; }
+
+if prism_running; then
+	log "Prism Launcher is already open: close it first (its windows can't be moved into the splitscreen)."
+	command -v notify-send >/dev/null && notify-send "Minecraft Splitscreen" "Close Prism Launcher first."
+	exit 1
+fi
+
+if [ "${1:-}" = --setup ] || [ ! -d "$PRISM/instances/P4" ]; then
+	"$HERE/mcss-setup.sh" "$HERE/mods" || exit 1
+	[ "${1:-}" = --setup ] && exit 0
+fi
+
+# Controllers: under Steam every pad is mirrored as a virtual "Microsoft X-Box 360 pad N", which is what SDL in
+# the game sees; outside Steam count real joysticks.
+count_pads() {
+	local steam
+	steam=$(grep -c '^N: Name="Microsoft X-Box 360 pad' /proc/bus/input/devices)
+	if [ "$steam" -gt 0 ]; then echo "$steam"; else ls /dev/input/by-id/ 2>/dev/null | grep -c -- '-event-joystick$'; fi
+}
+REQ=${1:-${MCSS_PLAYERS:-2}}
+case "$REQ" in
+	[1-4]) PLAYERS=$REQ ;;
+	auto) PLAYERS=$(count_pads) ;;
+	*) log "unknown player count '$REQ' (use 1-4 or auto), using 2"; PLAYERS=2 ;;
+esac
+[ "$PLAYERS" -lt 1 ] && PLAYERS=1
+[ "$PLAYERS" -gt 4 ] && PLAYERS=4
+log "players: $PLAYERS"
+
+MSA=$(python3 -c 'import json,sys
+a=json.load(open(sys.argv[1]))["accounts"]
+print(next((x["profile"]["name"] for x in a if x.get("type")=="MSA" and x.get("profile")), ""))' "$PRISM/accounts.json")
+[ -n "$MSA" ] || { log "no Microsoft account in Prism Launcher"; exit 1; }
+
+# --- nested KWin, isolated from the user's own KDE config and D-Bus ---
+KW=$STATE/kwin
+rm -rf "$KW" && mkdir -p "$KW/config" "$KW/data/kwin/scripts"
+cp -r "$HERE/kwin/mcss-tile" "$KW/data/kwin/scripts/"
+cat > "$KW/config/kwinrc" <<CFG
+[Plugins]
+mcss-tileEnabled=true
+[Compositing]
+LatencyPolicy=Low
+[Windows]
+FocusPolicy=ClickToFocus
+CFG
+W=${MCSS_WIDTH:-1280}; H=${MCSS_HEIGHT:-800}
+if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -z "${SteamGamepadUI:-}" ]; then
+	BACKEND=(--wayland-display "$WAYLAND_DISPLAY")   # Desktop Mode: a window on Plasma
+else
+	BACKEND=(--x11-display "${DISPLAY:-:0}")         # Game Mode: a window on gamescope's Xwayland
+	if command -v xdpyinfo >/dev/null; then
+		read -r W H < <(xdpyinfo -display "${DISPLAY:-:0}" | sed -n 's/.*dimensions: *\([0-9]*\)x\([0-9]*\).*/\1 \2/p' | head -1)
+	fi
+fi
+rm -f "$XDG_RUNTIME_DIR/$SOCKET" "$XDG_RUNTIME_DIR/$SOCKET.lock"
+env XDG_CONFIG_HOME="$KW/config" XDG_DATA_HOME="$KW/data" QT_FORCE_STDERR_LOGGING=1 \
+	dbus-run-session -- kwin_wayland "${BACKEND[@]}" --width "$W" --height "$H" --socket "$SOCKET" \
+	> "$STATE/kwin.log" 2>&1 &
+KWIN=$!
+for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$SOCKET" ] && break; sleep 0.2; done
+[ -S "$XDG_RUNTIME_DIR/$SOCKET" ] || { log "nested KWin did not start, see $STATE/kwin.log"; kill "$KWIN"; exit 1; }
+log "nested KWin pid $KWIN on $SOCKET (${W}x${H}, ${BACKEND[0]})"
+
+teardown() {
+	trap - EXIT INT TERM HUP
+	log "stopping"
+	prism_running && flatpak kill "$PRISM_APP"
+	kill "$KWIN" 2>/dev/null
+	wait "$KWIN" 2>/dev/null
+	exit 0
+}
+trap teardown EXIT INT TERM HUP
+
+# --- clients: SDL3 goes to the nested compositor over Wayland; no X11 so nothing escapes to gamescope ---
+prism() {
+	env -u DISPLAY WAYLAND_DISPLAY="$SOCKET" SDL_VIDEODRIVER=wayland \
+		flatpak run --env=WAYLAND_DISPLAY="$SOCKET" --env=SDL_VIDEODRIVER=wayland --unset-env=DISPLAY \
+		"$PRISM_APP" "$@" >> "$STATE/prism.log" 2>&1 &
+}
+mc_pid() {  # the Java process of instance P$1, if running
+	local p
+	for p in $(pgrep -x java); do
+		tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -q "/instances/P$1/" && { echo "$p"; return; }
+	done
+}
+
+prism -l P1 -a "$MSA"
+for _ in $(seq 120); do [ -n "$(mc_pid 1)" ] && break; sleep 1; done
+[ -n "$(mc_pid 1)" ] || { log "P1 did not start, see $STATE/prism.log"; exit 1; }
+log "P1 java pid $(mc_pid 1)"
+for n in $(seq 2 "$PLAYERS"); do
+	sleep "${MCSS_STAGGER:-8}"   # loading four clients at once starves the Deck's 4 cores
+	prism -l "P$n" -a "Player$n"
+done
+
+# --- run until P1 quits or the compositor goes away ---
+while kill -0 "$KWIN" 2>/dev/null && [ -n "$(mc_pid 1)" ]; do sleep 2; done

@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "splitscreen-glue",
+	"version": "${version}",
+	"name": "Splitscreen Glue",
+	"description": "Makes several Minecraft clients act as one splitscreen session: player-numbered titles, no pause on focus loss, host opens a LAN world, guests auto-join, each client pinned to its own controller.",
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["dev.mcss.glue.SplitscreenGlue"]
+	},
+	"mixins": [
+		{ "config": "splitscreen-glue.mixins.json", "environment": "client" }
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"recommends": {
+		"controlify": "*"
+	}
+}
