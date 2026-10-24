@@ -7,6 +7,8 @@ import java.net.Socket;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.fabricmc.loader.api.FabricLoader;
@@ -27,7 +29,8 @@ import org.slf4j.Logger;
 /**
  * Host: shows "Press START to play" (LobbyScreen) until Player 1's controller is known, adds a "Splitscreen"
  * settings button to its title screen and pause menu, and publishes whatever world it opens on LAN with authentication off, so offline-named guests can
- * join. Guest: whenever it sits on the title screen, waits for the host's port and joins. Every client: no pause
+ * join. Guest: whenever it sits on the title screen, waits for the host's port and joins; leaving the world while
+ * the host's is still open shuts the guest down (its player has left). Every client: no pause
  * on focus loss (only one tile has focus), guests muted so audio isn't doubled. Controllers: Lobby (host) and
  * GuestPad (guests).
  */
@@ -37,6 +40,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 
 	private boolean padsFailed;
 	private volatile boolean probing;
+	private volatile long leaveCheckAt;
 
 	@Override
 	public void onInitializeClient() {
@@ -46,6 +50,14 @@ public class SplitscreenGlue implements ClientModInitializer {
 		ClientLifecycleEvents.CLIENT_STARTED.register(this::setOptions);
 		if (!Splitscreen.HOST && CONTROLIFY) ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> GuestPad.leave());
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+		if (Splitscreen.HOST) {
+			// "world" tells guests whether a disconnect was them leaving (world still open: shut that guest down) or
+			// the host closing the world (they wait and rejoin). SERVER_STOPPING runs before players are kicked.
+			ServerLifecycleEvents.SERVER_STARTED.register(server -> Splitscreen.write("world", "open"));
+			ServerLifecycleEvents.SERVER_STOPPING.register(server -> Splitscreen.write("world", "closed"));
+		} else {
+			ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> leaveCheckAt = System.currentTimeMillis() + 300);
+		}
 		if (Splitscreen.HOST) {
 			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
 				if (screen instanceof PauseScreen) Screens.getWidgets(screen).add(settingsButton(mc, screen));
@@ -103,6 +115,17 @@ public class SplitscreenGlue implements ClientModInitializer {
 	}
 
 	private void tickGuest(Minecraft mc) {
+		if (leaveCheckAt != 0 && System.currentTimeMillis() >= leaveCheckAt) {
+			leaveCheckAt = 0;
+			String world = Splitscreen.read("world");
+			if (world != null && world.trim().equals("open")) {
+				// the host's world is still up, so this player left it: close this view instead of showing a menu
+				LOG.info("[mcss] P{} left the world, shutting this client down", Splitscreen.PLAYER);
+				mc.stop();
+				return;
+			}
+			LOG.info("[mcss] host closed the world, waiting to rejoin");
+		}
 		if (!(mc.gui.screen() instanceof TitleScreen) || probing) return;
 		probing = true;
 		Thread t = new Thread(() -> {

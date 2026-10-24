@@ -36,7 +36,8 @@ P1 starts alone on **Press START to play**:
   says "Controller found".
 - Player 1 presses Continue, then opens or creates any world. The others join it as soon as it's open, and
   rejoin by themselves if P1 switches worlds.
-- **Players 2–4 leave** with Quit Game in their own menu. The players after them move up a place, and a new join
+- **Players 2–4 leave** by leaving the world (Disconnect in their pause menu): their view closes straight away.
+  When Player 1 closes or switches worlds, the others stay and rejoin the next one. The players after them move up a place, and a new join
   goes on the end.
 - **Player 1 quitting ends the whole session** and closes the AppImage.
 - If a controller disconnects, its player keeps their place. START on any free controller reconnects them.

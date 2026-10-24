@@ -92,3 +92,7 @@
   + 2x 640x400 right.
 - Packaging bug: build/libs kept splitscreen-glue-0.1.0.jar after the version bump, and the AppImage shipped both
   (Fabric refuses duplicate mods). The build script now copies only the current version. CI builds were clean.
+- Guests now shut down when their player leaves the world, instead of landing on the title screen. To tell that
+  apart from the host closing or switching worlds, the host writes mcss-control/world = "open" (SERVER_STARTED)
+  and "closed" (SERVER_STOPPING, which runs before players are kicked). A guest disconnected while it still says
+  "open" calls mc.stop(). CLIENT_STOPPING writes left-P<n>, so the host frees the place and the rest move up.
