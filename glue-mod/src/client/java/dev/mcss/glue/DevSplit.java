@@ -21,7 +21,8 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
  * README split-screen shots, for development only (scripts/dev-split.py): with MCSS_DEV_SPLIT=<folder> and
  * MCSS_DEV_PLAYERS=<n>, client P<k> plays as a fixed profile; Player 1 creates a world, waits for everyone, gathers
  * them on a small cleared patch facing each other at noon, and then every client saves its own view as P<k>.png and
- * quits. The script composes the views in the tiler's layout. Never active in normal play.
+ * quits. The script composes the views in the tiler's layout. On the Deck (the real AppImage) the host also lists
+ * the guests in "slots" so AppRun starts them, and Lobby/GuestPad stay out of it. Never active in normal play.
  */
 final class DevSplit {
 	static final String DIR = System.getenv("MCSS_DEV_SPLIT");
@@ -29,7 +30,7 @@ final class DevSplit {
 	private static final int PLAYERS = Integer.parseInt(System.getenv().getOrDefault("MCSS_DEV_PLAYERS", "2"));
 	private static final List<String> NAMES = List.of("Alice", "Bob", "Kai", "Zuri");
 
-	private static boolean worldAsked, gathered, shot;
+	private static boolean worldAsked, gathered, shot, slotsWritten;
 	private static int ticks, waitTicks;
 
 	private DevSplit() {}
@@ -69,6 +70,13 @@ final class DevSplit {
 	}
 
 	private static void host(Minecraft mc) {
+		// on the Deck, AppRun starts the guests listed in "slots" (normally added by START presses in Lobby)
+		if (!slotsWritten) {
+			slotsWritten = true;
+			StringBuilder slots = new StringBuilder();
+			for (int n = 1; n <= PLAYERS; n++) slots.append(n).append(' ').append(System.currentTimeMillis()).append('\n');
+			Splitscreen.write("slots", slots.toString());
+		}
 		if (!worldAsked && mc.gui.screen() instanceof TitleScreen title) {
 			worldAsked = true;
 			LevelSettings settings = new LevelSettings("Splitscreen", GameType.CREATIVE,

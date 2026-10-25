@@ -152,3 +152,15 @@
   go through scripts/capped.sh (a systemd user scope, MemoryMax=3G, swap off). The dev client and dev-split
   heaps are -Xmx1G and Gradle is -Xmx1536m. The full smoke test passes inside the 3 GB cap. 3-4 simultaneous
   clients don't fit locally; split-2p-horizontal.png is the only composite so far.
+- Split-screen layout pictures: scripts/deck-split.py runs the installed AppImage on the Deck over SSH with
+  MCSS_DEV_SPLIT/MCSS_DEV_PLAYERS (flatpak passes the env through to Java).
+  - DevSplit makes the host list the guests in "slots", so AppRun starts them without START presses; it pauses
+    Lobby/GuestPad.
+  - Every view saves P<k>.png at its real tile size, and the script composes them in the tiler's slots.
+  - It adds only the sample profiles the Deck lacks, backs up and restores the layout setting, deletes the
+    DevSplit-* worlds, and cleans up afterwards (verified).
+- Actions bumped to their Node 24 majors (checkout v7, setup-java v6, setup-python v7, upload-artifact v7,
+  setup-gradle v6, action-gh-release v3); the CI run has no annotations.
+- minecraft-watch run by hand against 26.4-snapshot-5 opened issue #1: Fabric API is ready; Controlify, YACL and
+  Sodium aren't yet; the glue doesn't compile because RenderPipelines and DynamicTexture moved and
+  Screen.extractRenderState changed signature.
