@@ -52,13 +52,17 @@ Every view starts by asking **Choose your profile**: Player 1 before the main me
 P1 starts alone:
 - The first controller to press any button is Player 1. The game doesn't go on to the menus until it knows Player
   1's controller and profile.
-- Every other controller that presses START becomes the next player and gets its own view (about 30 s to load).
-  That works at any time, up to 4 players. While Player 1 is alone, a reminder pops up now and then.
+- Every other controller that presses START becomes the next player. The screen splits straight away, with a
+  "Player 2 is joining" tile until their Minecraft has loaded (about 30 s). That works at any time, up to 4
+  players. While Player 1 is alone, a reminder pops up now and then.
 - A new view shows **Waiting for Player 1's world…** (guests never see the menus) and "Press any button on your
   controller". After a couple of presses it finds its controller. It joins Player 1's world as soon as it's
   open. **Back** returns to profile selection, where **Leave** closes that view.
 - Player 1 opens or creates any world. The others join it as soon as it's open, and rejoin by themselves if
   Player 1 switches worlds.
+- **Servers:** when Player 1 joins a multiplayer server, the others follow, and leave again when Player 1 does.
+  Guests play offline profiles, so this only works on servers with `online-mode=false` (your own, say). A server
+  that refuses them gets its reason shown on their waiting screen.
 - **Players 2–4 leave** by leaving the world (Disconnect in their pause menu): their view closes straight away.
   The players after them move up a place, and a new join goes on the end. When Player 1 closes or switches
   worlds, the others stay and rejoin the next one.

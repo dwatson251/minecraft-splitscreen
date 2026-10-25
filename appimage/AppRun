@@ -129,8 +129,9 @@ mc_pid() {  # the Java process of instance P$1, if running
 	done
 }
 
-# a joining player's tile while their Minecraft starts (loading.qml, else zenity): titled like their game window,
-# "P<n> Loading", so the tiler splits the screen at once and swaps in the game window when it appears
+# a player's tile while their Minecraft starts, Player 1's at launch and a guest's when they join (loading.qml, else
+# zenity): titled like their game window, "P<n> Loading", so the tiler gives it that player's place at once and
+# swaps in the game window when it appears
 loading_open() {  # instance, shown number
 	loading_close "$1"
 	local run=(env -u DISPLAY -u LD_PRELOAD WAYLAND_DISPLAY="$SOCKET" QT_QPA_PLATFORM=wayland GDK_BACKEND=wayland
@@ -138,8 +139,10 @@ loading_open() {  # instance, shown number
 	if command -v qml6 >/dev/null; then
 		"${run[@]}" qml6 "$HERE/loading.qml" -- "$2" >> "$STATE/loading.log" 2>&1 &
 	elif command -v zenity >/dev/null; then
-		"${run[@]}" zenity --progress --pulsate --no-cancel --title="P$2 Loading" \
-			--text="Player $2 is joining: starting Minecraft..." >> "$STATE/loading.log" 2>&1 &
+		local text="Player $2 is joining: starting Minecraft..."
+		[ "$2" = 1 ] && text="Minecraft is loading..."
+		"${run[@]}" zenity --progress --pulsate --no-cancel --title="P$2 Loading" --text="$text" \
+			>> "$STATE/loading.log" 2>&1 &
 	else
 		return
 	fi
@@ -154,6 +157,8 @@ shown_number() {  # a joined player's place in the slots file (Player 1 first), 
 	grep -n "^$1 " "$CONTROL/slots" 2>/dev/null | cut -d: -f1 | head -1
 }
 
+loading_open 1 1
+P1_STARTED=$(date +%s)
 prism -l P1 -a "$MSA"
 for _ in $(seq 120); do [ -n "$(mc_pid 1)" ] && break; sleep 1; done
 [ -n "$(mc_pid 1)" ] || { log "P1 did not start, see $STATE/prism.log"; exit 1; }
@@ -169,6 +174,8 @@ while kill -0 "$KWIN" 2>/dev/null && [ -n "$(mc_pid 1)" ]; do
 	declare -A WANT=()
 	while read -r n gen; do [[ "$n" =~ ^[2-4]$ ]] && WANT[$n]=$gen; done 2>/dev/null < "$CONTROL/slots"
 	now=$(date +%s)
+	# Player 1's loading window: the tiler closes it when the game window appears; this is the fallback
+	[ -n "${LOADING[1]:-}" ] && [ $((now - P1_STARTED)) -gt 180 ] && loading_close 1
 	for n in 2 3 4; do
 		pid=$(mc_pid "$n")
 		gen=${WANT[$n]:-}

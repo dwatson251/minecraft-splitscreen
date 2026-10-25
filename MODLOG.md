@@ -215,3 +215,5 @@
   screen at once. The tiler closes it when that player's game window (same P<n>) appears; AppRun closes it when the
   player leaves before then, after 90 s as a fallback, and on teardown. qml6 loads it on the Deck (checked
   off-screen).
+- Player 1 gets the loading tile too ("Minecraft is loading…") from launch until its game window appears
+  (fallback close after 180 s). README: instant split, server follow. v0.7.0.

@@ -1,6 +1,6 @@
-// A player's tile while their Minecraft starts (about 30 s): AppRun opens it as soon as the player presses START,
-// titled like their game window ("P<n> Loading"), so the tiler splits the screen at once. The tiler closes it when
-// that player's game window appears.  qml6 loading.qml -- <player number>
+// A player's tile while their Minecraft starts: Player 1's at launch, a guest's as soon as they press START (about
+// 30 s). Titled like their game window ("P<n> Loading"), so the tiler gives it that player's place at once; the
+// tiler closes it when the game window appears.  qml6 loading.qml -- <player number>
 import QtQuick
 import QtQuick.Window
 
@@ -19,14 +19,14 @@ Window {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Player " + root.player + " is joining"
+            text: root.player === "1" ? "Minecraft is loading…" : "Player " + root.player + " is joining"
             color: "#ffffff"
             font.pixelSize: Math.max(16, Math.round(root.height / 12))
             font.bold: true
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Starting Minecraft…"
+            text: root.player === "1" ? "Minecraft Splitscreen" : "Starting Minecraft…"
             color: "#a0a0a8"
             font.pixelSize: Math.max(12, Math.round(root.height / 22))
         }
