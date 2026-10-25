@@ -55,6 +55,8 @@ public class SplitscreenGlue implements ClientModInitializer {
 		if (!Splitscreen.HOST && CONTROLIFY) ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> GuestPad.leave());
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
 		if (Splitscreen.HOST) {
+			// AppRun waits for this after restarting into an update: Minecraft got started
+			ClientLifecycleEvents.CLIENT_STARTED.register(mc -> Splitscreen.write("booted", "1"));
 			// "world" tells guests whether a disconnect was them leaving (world still open: shut that guest down) or
 			// the host closing the world (they wait and rejoin). SERVER_STOPPING runs before players are kicked.
 			ServerLifecycleEvents.SERVER_STARTED.register(server -> Splitscreen.write("world", "open"));
@@ -138,6 +140,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 		if (CONTROLIFY) FocusFix.tick(mc);
 		if (CONTROLIFY) DevKeys.tick(mc);
 		if (CONTROLIFY) DevSodium.tick(mc);
+		DevUpdate.tick(mc);
 		if (CONTROLIFY && !DevSplit.ACTIVE) {
 			Profiles.tick();
 			try {
@@ -149,6 +152,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 				padsFailed = true;
 			}
 		}
+		if (Splitscreen.HOST && CONTROLIFY && !DevSplit.ACTIVE && !DevShots.ACTIVE) UpdateScreen.tick(mc);
 		if (Splitscreen.HOST) tickHost(mc);
 		else tickGuest(mc);
 	}

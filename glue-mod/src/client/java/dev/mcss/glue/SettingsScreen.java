@@ -1,6 +1,5 @@
 package dev.mcss.glue;
 
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -41,15 +40,14 @@ public class SettingsScreen extends DebouncedScreen {
 		}).bounds(width / 2 - 100, y + 96, 200, 20).build());
 		addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
 				.bounds(width / 2 - 100, y + 128, 200, 20).build());
-		Component version = Component.literal("Minecraft Splitscreen " + FabricLoader.getInstance()
-				.getModContainer("splitscreen-glue").map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("?"));
+		Component version = Component.literal("Minecraft Splitscreen v" + UpdateScreen.installed());
 		int vw = font.width(version);
 		addRenderableWidget(new StringWidget((width - vw) / 2, y + 154, vw, 12, version, font));
 		setInitialFocus(layout);
 	}
 
 	private static Component updatesLabel() {
-		return Component.literal("Updates: " + (SplitSettings.updates() ? "Automatic" : "Off"));
+		return Component.literal("Updates: " + (SplitSettings.updates() ? "Ask at launch" : "Off"));
 	}
 
 	private static Component layoutLabel() {

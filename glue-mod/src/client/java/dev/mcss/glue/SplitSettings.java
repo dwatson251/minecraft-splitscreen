@@ -31,7 +31,7 @@ final class SplitSettings {
 		save();
 	}
 
-	/** Check GitHub for a newer version at launch (AppRun) and update by itself. */
+	/** Look for a newer version on GitHub at launch (AppRun) and offer it (UpdateScreen). */
 	static boolean updates() {
 		return updates;
 	}

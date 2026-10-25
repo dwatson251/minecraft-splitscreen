@@ -225,3 +225,17 @@
   Steam) with MCSS_UPDATED set so it doesn't check again. Off: Splitscreen settings "Updates: Off" (updates=off,
   grepped by AppRun), --no-update, MCSS_NO_UPDATE=1. Unit-tested against a fake API: newer/equal/older/pre-release,
   offline (gives up in 4 s), bad digest (rejected, file untouched), progress.
+- Self-update reworked to ask first (user's request) and to roll back:
+  - AppRun runs mcss-update.py check in the background into mcss-control/update-available.
+  - UpdateScreen (host, title screen, once the profile and controller are known) offers it: installed vs new,
+    "Update and Restart" / "Continue without update".
+  - The request (update-request) is handled in AppRun's loop. It backs up to .previous, downloads in place
+    (update-status shows "Downloading v… NN%"), and on any failure restores the backup and the screen shows the
+    error; the game keeps running.
+  - On success, restart_into keeps the nested KWin (MCSS_KWIN) with a "Restarting…" tile, and runs the new AppImage
+    as a child (not exec). The new one touches $STATE/update-ok once Minecraft has started (P1's "booted" control
+    file). If it never does, the parent restores .previous and execs the old version with MCSS_UPDATE_ERROR, which
+    UpdateScreen shows.
+  - Tested: the UpdateScreen states via DevUpdate (MCSS_DEV_UPDATE, screenshots), and AppRun's update_now in a
+    harness against a fake release (good, bad digest, nothing to install). The restart and rollback across real
+    AppImages wasn't tested: the user can't test before the tag, so any fixes ship as patches.

@@ -3,12 +3,13 @@
 # tiles 1-4 Minecraft clients, one per controller.
 #   MinecraftSplitscreen.AppImage            start
 #   MinecraftSplitscreen.AppImage --setup    (re)create the Prism instances and offline accounts, then exit
-#   MinecraftSplitscreen.AppImage --no-update   start without checking GitHub for a newer version
+#   MinecraftSplitscreen.AppImage --no-update   don't look for a newer version on GitHub
 # P1 starts alone with "Press START to play": every controller that presses START becomes the next player (first
 # = P1), also later in game, and this script starts that player's view (P2-P4). A guest that quits frees its
 # place. P1 opens any world, which is shared on LAN; the others join it automatically.
 # Logs: ~/.local/state/mc-splitscreen/
 set -u
+ARGS=("$@")   # kept for restarting into an update
 HERE=$(dirname "$(readlink -f "$0")")
 STATE=${XDG_STATE_HOME:-$HOME/.local/state}/mc-splitscreen
 PRISM_APP=org.prismlauncher.PrismLauncher
@@ -53,43 +54,54 @@ print(next((x["profile"]["name"] for x in a if x.get("type")=="MSA" and x.get("p
 [ -n "$MSA" ] || { log "no Microsoft account in Prism Launcher"; exit 1; }
 
 # --- nested KWin, isolated from the user's own KDE config and D-Bus ---
-KW=$STATE/kwin
-rm -rf "$KW" && mkdir -p "$KW/config" "$KW/data/kwin/scripts"
-cp -r "$HERE/kwin/mcss-tile" "$KW/data/kwin/scripts/"
-cat > "$KW/config/kwinrc" <<CFG
-[Plugins]
-mcss-tileEnabled=true
-[Compositing]
-LatencyPolicy=Low
-[Windows]
-FocusPolicy=ClickToFocus
-CFG
-W=${MCSS_WIDTH:-1280}; H=${MCSS_HEIGHT:-800}
-# Desktop Mode outside Steam: a Wayland window on Plasma. Under Steam it's an X11 window instead, even on Plasma:
-# Steam only applies the game's controller layout to a window it can see (it's an X11 client), otherwise it uses
-# its desktop layout, which turns every pad's A into Enter, B into Escape, the D-pad into arrow keys.
-if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -z "${SteamGamepadUI:-}" ] && [ -z "${SteamAppId:-}" ]; then
-	BACKEND=(--wayland-display "$WAYLAND_DISPLAY")   # Desktop Mode: a window on Plasma
-else
-	BACKEND=(--x11-display "${DISPLAY:-:0}")         # Game Mode (gamescope's Xwayland), or Steam on Plasma
-	if command -v xdpyinfo >/dev/null; then
-		read -r W H < <(xdpyinfo -display "${DISPLAY:-:0}" | sed -n 's/.*dimensions: *\([0-9]*\)x\([0-9]*\).*/\1 \2/p' | head -1)
+start_kwin() {
+	KW=$STATE/kwin
+	rm -rf "$KW" && mkdir -p "$KW/config" "$KW/data/kwin/scripts"
+	cp -r "$HERE/kwin/mcss-tile" "$KW/data/kwin/scripts/"
+	cat > "$KW/config/kwinrc" <<-CFG
+	[Plugins]
+	mcss-tileEnabled=true
+	[Compositing]
+	LatencyPolicy=Low
+	[Windows]
+	FocusPolicy=ClickToFocus
+	CFG
+	W=${MCSS_WIDTH:-1280}; H=${MCSS_HEIGHT:-800}
+	# Desktop Mode outside Steam: a Wayland window on Plasma. Under Steam it's an X11 window instead, even on Plasma:
+	# Steam only applies the game's controller layout to a window it can see (it's an X11 client), otherwise it uses
+	# its desktop layout, which turns every pad's A into Enter, B into Escape, the D-pad into arrow keys.
+	if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -z "${SteamGamepadUI:-}" ] && [ -z "${SteamAppId:-}" ]; then
+		BACKEND=(--wayland-display "$WAYLAND_DISPLAY")   # Desktop Mode: a window on Plasma
+	else
+		BACKEND=(--x11-display "${DISPLAY:-:0}")         # Game Mode (gamescope's Xwayland), or Steam on Plasma
+		if command -v xdpyinfo >/dev/null; then
+			read -r W H < <(xdpyinfo -display "${DISPLAY:-:0}" | sed -n 's/.*dimensions: *\([0-9]*\)x\([0-9]*\).*/\1 \2/p' | head -1)
+		fi
 	fi
+	rm -f "$XDG_RUNTIME_DIR/$SOCKET" "$XDG_RUNTIME_DIR/$SOCKET.lock"
+	env -u LD_PRELOAD XDG_CONFIG_HOME="$KW/config" XDG_DATA_HOME="$KW/data" QT_FORCE_STDERR_LOGGING=1 \
+		dbus-run-session -- kwin_wayland "${BACKEND[@]}" --width "$W" --height "$H" --socket "$SOCKET" \
+		> "$STATE/kwin.log" 2>&1 &
+	SESSION=$!   # dbus-run-session; it doesn't pass signals on, so KWin itself is tracked and stopped by its own PID
+	for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$SOCKET" ] && break; sleep 0.2; done
+	KWIN=$(pgrep -P "$SESSION" -x kwin_wayland | head -1)
+	if [ ! -S "$XDG_RUNTIME_DIR/$SOCKET" ] || [ -z "$KWIN" ]; then
+		log "nested KWin did not start, see $STATE/kwin.log"
+		[ -n "$KWIN" ] && kill "$KWIN"
+		kill "$SESSION" 2>/dev/null
+		exit 1
+	fi
+	log "nested KWin pid $KWIN on $SOCKET (${W}x${H}, ${BACKEND[0]})"
+}
+# restarting into an update keeps the same nested KWin (MCSS_KWIN="<kwin pid> <dbus-run-session pid>"), so the
+# screen stays up and says "Restarting" instead of dropping back to Steam
+read -r KWIN SESSION <<< "${MCSS_KWIN:-}"
+if [ -n "${KWIN:-}" ] && kill -0 "$KWIN" 2>/dev/null && [ -S "$XDG_RUNTIME_DIR/$SOCKET" ]; then
+	log "continuing in nested KWin pid $KWIN"
+else
+	start_kwin
 fi
-rm -f "$XDG_RUNTIME_DIR/$SOCKET" "$XDG_RUNTIME_DIR/$SOCKET.lock"
-env -u LD_PRELOAD XDG_CONFIG_HOME="$KW/config" XDG_DATA_HOME="$KW/data" QT_FORCE_STDERR_LOGGING=1 \
-	dbus-run-session -- kwin_wayland "${BACKEND[@]}" --width "$W" --height "$H" --socket "$SOCKET" \
-	> "$STATE/kwin.log" 2>&1 &
-SESSION=$!   # dbus-run-session; it doesn't pass signals on, so KWin itself is tracked and stopped by its own PID
-for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/$SOCKET" ] && break; sleep 0.2; done
-KWIN=$(pgrep -P "$SESSION" -x kwin_wayland | head -1)
-if [ ! -S "$XDG_RUNTIME_DIR/$SOCKET" ] || [ -z "$KWIN" ]; then
-	log "nested KWin did not start, see $STATE/kwin.log"
-	[ -n "$KWIN" ] && kill "$KWIN"
-	kill "$SESSION" 2>/dev/null
-	exit 1
-fi
-log "nested KWin pid $KWIN on $SOCKET (${W}x${H}, ${BACKEND[0]})"
+unset MCSS_KWIN
 
 declare -A LOADING=()   # player -> its loading window's pid (loading_open, below)
 stop_session() {
@@ -161,45 +173,89 @@ shown_number() {  # a joined player's place in the slots file (Player 1 first), 
 	grep -n "^$1 " "$CONTROL/slots" 2>/dev/null | cut -d: -f1 | head -1
 }
 
-# --- self-update: the newest GitHub release (mcss-update.py), checked while Player 1's loading tile shows, before
-# anything else starts. A newer one replaces this AppImage file in place (the Steam shortcut keeps pointing at it),
-# and this script then becomes the new one (exec: same process, so Steam still sees one running game). Off with
-# MCSS_NO_UPDATE=1, --no-update, or "Updates: Off" in Player 1's Splitscreen settings; skipped for a dev run (no
-# $APPIMAGE) or a folder it can't write to. The previous version is kept as <AppImage>.previous.
-STATUS=$STATE/loading-status
+# --- updates (mcss-update.py) ---
+# A newer GitHub release is looked up in the background; Player 1's game offers it (UpdateScreen: installed and new
+# version, "Update and Restart" or "Continue without update"). Asked to update (control file "update-request"):
+# back up the AppImage as <AppImage>.previous, download and check the new one in its place, then restart into it in
+# this same KWin, showing "Restarting". The new version runs as a child of this one: if it doesn't get Minecraft
+# started, the backup goes back and this version starts again and says why. If the download fails, the backup goes
+# back (if the file was touched) and the game says what went wrong; it keeps running on this version.
+# Off with "Updates: Off" in Player 1's Splitscreen settings, --no-update or MCSS_NO_UPDATE=1; skipped for a dev run
+# (no $APPIMAGE) or a folder that can't be written.
+CURRENT=$(cat "$HERE/VERSION" 2>/dev/null || echo 0.0.0)
 update_wanted() {
 	[ -n "${APPIMAGE:-}" ] && [ -w "$(dirname "$APPIMAGE")" ] || return 1
-	[ "${MCSS_NO_UPDATE:-}" != 1 ] && [ -z "${MCSS_UPDATED:-}" ] || return 1   # MCSS_UPDATED: just updated
+	# just updated, or just came back from a failed one: not again this launch
+	[ "${MCSS_NO_UPDATE:-}" != 1 ] && [ -z "${MCSS_UPDATED:-}" ] && [ -z "${MCSS_UPDATE_ERROR:-}" ] || return 1
 	local a
-	for a in "$@"; do [ "$a" = --no-update ] && return 1; done
+	for a in "${ARGS[@]}"; do [ "$a" = --no-update ] && return 1; done
 	! grep -qx 'updates=off' "$PRISM/instances/P1/minecraft/config/splitscreen.properties" 2>/dev/null
 }
-self_update() {
-	local current tag url size sha
-	current=$(cat "$HERE/VERSION" 2>/dev/null) || return
-	echo "Checking for updates..." > "$STATUS"
-	read -r tag url size sha < <(python3 "$HERE/mcss-update.py" check "$current") || { log "up to date ($current)"; return; }
-	log "update: $current -> $tag"
-	echo "Updating to $tag..." > "$STATUS"
-	cp -f "$APPIMAGE" "$APPIMAGE.previous" 2>/dev/null
-	if ! MCSS_UPDATE_LABEL="Updating to $tag..." python3 "$HERE/mcss-update.py" download "$url" "$size" "$sha" "$APPIMAGE" \
-		"$STATUS"; then
-		log "update to $tag failed, starting $current"
+update_status() {  # what Player 1's update screen shows: "Downloading v… NN%", "ready", "failed: <why>"
+	printf '%s\n' "$1" > "$CONTROL/update-status.tmp" && mv -f "$CONTROL/update-status.tmp" "$CONTROL/update-status"
+}
+restore_backup() {
+	if [ -f "$APPIMAGE.previous" ] && ! cmp -s "$APPIMAGE" "$APPIMAGE.previous"; then
+		cp -f "$APPIMAGE.previous" "$APPIMAGE" && log "restored $APPIMAGE from the backup"
+	fi
+}
+update_now() {
+	local tag url size sha err
+	if [ -z "${APPIMAGE:-}" ] || ! { read -r tag url size sha < "$CONTROL/update-available"; } 2>/dev/null; then
+		update_status "failed: no update to install"
 		return
 	fi
-	log "updated to $tag, restarting"
-	echo "Restarting..." > "$STATUS"
-	sleep 1
-	stop_session
-	rm -f "$STATUS"
-	export MCSS_UPDATED=$tag
-	exec "$APPIMAGE" "$@"
+	log "updating $CURRENT -> $tag"
+	if ! cp -f "$APPIMAGE" "$APPIMAGE.previous"; then
+		update_status "failed: couldn't back up the current version"
+		return
+	fi
+	if ! err=$(MCSS_UPDATE_LABEL="Downloading $tag..." python3 "$HERE/mcss-update.py" download "$url" "$size" "$sha" \
+		"$APPIMAGE" "$CONTROL/update-status" 2>&1); then
+		restore_backup
+		log "update to $tag failed: $err"
+		update_status "failed: ${err#update failed: }"
+		return
+	fi
+	log "downloaded $tag, restarting"
+	update_status "ready"
+	sleep 2   # Player 1's screen says "Restarting"
+	restart_into "$tag"
+}
+restart_into() {  # the new version, in this KWin; this version again if it doesn't get Minecraft started
+	local tag=$1 rc n
+	trap - EXIT INT TERM HUP
+	prism_running && flatpak kill "$PRISM_APP"
+	for _ in $(seq 20); do prism_running || break; sleep 0.5; done
+	for n in "${!LOADING[@]}"; do loading_close "$n"; done
+	echo "Restarting..." > "$STATE/restart-status"
+	loading_open 1 1 "$STATE/restart-status"
+	rm -f "$STATE/update-ok"
+	MCSS_KWIN="$KWIN $SESSION" MCSS_UPDATED=$tag MCSS_RESTART_TILE=${LOADING[1]:-} "$APPIMAGE" "${ARGS[@]}"
+	rc=$?
+	if [ -e "$STATE/update-ok" ]; then
+		log "$tag ran (exit $rc)"
+		loading_close 1
+		kill "$KWIN" 2>/dev/null
+		exit "$rc"
+	fi
+	log "$tag didn't get Minecraft started (exit $rc): back to $CURRENT"
+	restore_backup
+	MCSS_KWIN="$KWIN $SESSION" MCSS_RESTART_TILE=${LOADING[1]:-} \
+		MCSS_UPDATE_ERROR="Version $tag didn't start, so this is v$CURRENT again." exec "$APPIMAGE" "${ARGS[@]}"
 }
 
-rm -f "$STATUS"
-loading_open 1 1 "$STATUS"
-update_wanted "$@" && self_update "$@"
-rm -f "$STATUS"   # back to "Minecraft is loading…"
+# a restart's "Restarting" tile makes way for this launch's own
+[ -n "${MCSS_RESTART_TILE:-}" ] && kill "$MCSS_RESTART_TILE" 2>/dev/null
+unset MCSS_RESTART_TILE
+loading_open 1 1
+[ -n "${MCSS_UPDATE_ERROR:-}" ] && printf '%s\n' "$MCSS_UPDATE_ERROR" > "$CONTROL/update-error"
+if update_wanted; then
+	(python3 "$HERE/mcss-update.py" check "$CURRENT" > "$CONTROL/update-available.tmp" \
+		&& mv -f "$CONTROL/update-available.tmp" "$CONTROL/update-available" \
+		&& log "update available: $(cut -d' ' -f1 "$CONTROL/update-available")" \
+		|| rm -f "$CONTROL/update-available.tmp") &
+fi
 P1_STARTED=$(date +%s)
 prism -l P1 -a "$MSA"
 for _ in $(seq 120); do [ -n "$(mc_pid 1)" ] && break; sleep 1; done
@@ -216,6 +272,11 @@ while kill -0 "$KWIN" 2>/dev/null && [ -n "$(mc_pid 1)" ]; do
 	declare -A WANT=()
 	while read -r n gen; do [[ "$n" =~ ^[2-4]$ ]] && WANT[$n]=$gen; done 2>/dev/null < "$CONTROL/slots"
 	now=$(date +%s)
+	if [ -e "$CONTROL/update-request" ]; then
+		rm -f "$CONTROL/update-request"
+		update_now
+	fi
+	[ -n "${MCSS_UPDATED:-}" ] && [ -e "$CONTROL/booted" ] && [ ! -e "$STATE/update-ok" ] && touch "$STATE/update-ok"
 	# Player 1's loading window: the tiler closes it when the game window appears; this is the fallback
 	[ -n "${LOADING[1]:-}" ] && [ $((now - P1_STARTED)) -gt 180 ] && loading_close 1
 	for n in 2 3 4; do
