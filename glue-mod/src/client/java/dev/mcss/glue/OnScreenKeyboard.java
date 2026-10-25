@@ -9,7 +9,8 @@ import net.minecraft.network.chat.Component;
 
 /**
  * The on-screen keyboard: rows of plain buttons (so pad navigation works) that type into an EditBox. Shift and the
- * phone-style "capital first letter" only relabel the keys, so the key you're on keeps focus.
+ * phone-style "capital first letter" only relabel the keys, so the key you're on keeps focus. On the pad, X deletes
+ * and Y types a space (where spaces are allowed); the screen calls tick().
  */
 final class OnScreenKeyboard {
 	static final int WIDTH = 10 * 18 - 2;
@@ -21,6 +22,7 @@ final class OnScreenKeyboard {
 	private final List<Character> chars = new ArrayList<>();
 	private boolean shift = true;
 	private Button first;
+	private int faceHeld = -1;
 
 	/** space: adds a Space bar (free text such as world names; profile names can't have spaces). */
 	OnScreenKeyboard(EditBox target, boolean space) {
@@ -48,6 +50,22 @@ final class OnScreenKeyboard {
 			below += 18;
 		}
 		return below;
+	}
+
+	/** The pad shortcuts' hint, for under the keyboard. */
+	String hint() {
+		return space ? "X: delete   Y: space" : "X: delete";
+	}
+
+	/** Pad shortcuts: X = backspace, Y = space, on the press (not while held). */
+	void tick() {
+		if (!SplitscreenGlue.CONTROLIFY) return;
+		int now = PadEdges.currentFaceButtons();
+		// ignore buttons already held when the keyboard opened
+		int pressed = faceHeld < 0 ? 0 : now & ~faceHeld;
+		faceHeld = now;
+		if ((pressed & 1) != 0) press('<');
+		if ((pressed & 2) != 0 && space) press(' ');
 	}
 
 	Button first() {

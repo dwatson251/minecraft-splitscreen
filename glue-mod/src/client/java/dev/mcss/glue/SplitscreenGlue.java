@@ -37,7 +37,7 @@ import org.slf4j.Logger;
  */
 public class SplitscreenGlue implements ClientModInitializer {
 	public static final Logger LOG = LogUtils.getLogger();
-	private static final boolean CONTROLIFY = FabricLoader.getInstance().isModLoaded("controlify");
+	static final boolean CONTROLIFY = FabricLoader.getInstance().isModLoaded("controlify");
 
 	private boolean padsFailed;
 	private volatile boolean probing;

@@ -172,3 +172,10 @@
   - No keyboard for the world name: A on any vanilla text box now opens TypeScreen (our keyboard plus Space)
     through a mixin on Controlify's ScreenProcessor.tryOpenKeyboard, instead of Controlify's overlay. Chat and
     our own screens are left alone. Steam's keyboard can't help, because its Enter, Space and arrows are dropped.
+  - The missing "Edit profile" option was really a missing rename: Edit profile now has the name (A opens the
+    keyboard). Profiles.rename moves players/{data,stats,advancements}/<offline uuid> in every P1 world to the
+    new name's UUID (a leftover file there is kept aside as *.before-rename-<ms>). It's refused while a world is
+    open or another view uses the profile; renaming your own active profile moves its lock.
+  - Pad shortcuts on the keyboard: X = backspace, Y = space (no space in profile names).
+  - TypeScreen's Done also fills a rebuilt box at the same position, because screens without their own
+    repositionElements (e.g. Direct Connect) rebuild their widgets when shown again.

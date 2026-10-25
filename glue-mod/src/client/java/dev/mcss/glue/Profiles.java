@@ -16,8 +16,9 @@ import java.util.regex.Pattern;
 /**
  * Player profiles: a name and a skin, shared by every view (files in <prism>/mcss-profiles, kept between sessions).
  * The chosen profile becomes this client's identity (UserMixin): its name is what the LAN world sees, so each world
- * keeps each profile's inventory, and it's the name tag. Names are fixed once created, because worlds save player
- * data under the name. Player 1 can also play as its Microsoft account (ACCOUNT).
+ * keeps each profile's inventory, and it's the name tag. Worlds save player data under the name's offline UUID, so
+ * a rename moves those files in Player 1's worlds along with it. Player 1 can also play as its Microsoft account
+ * (ACCOUNT).
  *
  * A profile in use is locked for this session (mcss-control/profile-<name>, refreshed every second; stale after
  * LOCK_STALE_MS), so two views can't pick the same one.
@@ -109,9 +110,67 @@ public final class Profiles {
 
 	/** Why a new profile name can't be used, or null if it can. */
 	public static String nameProblem(String name) {
+		return nameProblem(name, null);
+	}
+
+	/** As above, for renaming `self` (which may keep its name in another case). */
+	public static String nameProblem(String name, Profile self) {
 		if (name.length() < 3) return "At least 3 letters";
 		if (!NAME.matcher(name).matches()) return "Letters, numbers and _ only";
-		if (byName(name) != null || name.equalsIgnoreCase(accountName)) return "That name is taken";
+		Profile taken = byName(name);
+		if ((taken != null && (self == null || !taken.name().equals(self.name()))) || name.equalsIgnoreCase(accountName)) {
+			return "That name is taken";
+		}
+		return null;
+	}
+
+	/** Player data folders inside a world, current (26.x) and older layouts. */
+	private static final String[] PLAYER_DIRS = {"players/data", "players/stats", "players/advancements", "playerdata",
+			"stats", "advancements"};
+	private static final String[] PLAYER_EXTS = {".dat", ".dat_old", ".json"};
+
+	/**
+	 * Renames a profile and moves its player data in every one of Player 1's worlds to the new name's UUID, so
+	 * inventories, stats and advancements follow. Not while a world is open (the server would write the old file
+	 * back) or while another view plays as it. Returns why it can't, or null when done.
+	 */
+	public static synchronized String rename(Profile p, String newName) {
+		if (p.name().equals(newName)) return null;
+		String why = nameProblem(newName, p);
+		if (why != null) return why;
+		if (inUseElsewhere(p)) return "Another player is using this profile";
+		String world = Splitscreen.read("world");
+		if (world != null && world.trim().equals("open")) return "Not while a world is open";
+
+		String from = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(p.name()).toString();
+		String to = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(newName).toString();
+		int moved = 0;
+		try (DirectoryStream<Path> worlds = Files.newDirectoryStream(Splitscreen.SHARED.resolve("instances/P1/minecraft/saves"))) {
+			for (Path w : worlds) {
+				for (String dir : PLAYER_DIRS) {
+					for (String ext : PLAYER_EXTS) {
+						Path src = w.resolve(dir).resolve(from + ext);
+						if (!Files.isRegularFile(src)) continue;
+						Path dst = w.resolve(dir).resolve(to + ext);
+						// a deleted profile that had this name may have left data: keep it beside, never overwrite
+						if (Files.exists(dst)) Files.move(dst, dst.resolveSibling(to + ext + ".before-rename-" + System.currentTimeMillis()));
+						Files.move(src, dst);
+						moved++;
+					}
+				}
+			}
+		} catch (IOException e) {
+			SplitscreenGlue.LOG.warn("[mcss] rename {} -> {}: moving world data failed: {}", p.name(), newName, e.toString());
+			return "Couldn't move the world data";
+		}
+
+		boolean mine = active != null && active != ACCOUNT && active.name().equals(p.name());
+		if (mine) release();
+		Profile renamed = new Profile(newName, p.skin(), p.slim());
+		save(renamed);
+		delete(p);
+		if (mine) activate(renamed);
+		SplitscreenGlue.LOG.info("[mcss] renamed profile {} -> {} ({} world files moved)", p.name(), newName, moved);
 		return null;
 	}
 

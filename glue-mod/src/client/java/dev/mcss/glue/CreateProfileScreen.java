@@ -13,6 +13,7 @@ public class CreateProfileScreen extends SkinScreen {
 	private final ProfileSelectScreen parent;
 	private EditBox name;
 	private Button create;
+	private OnScreenKeyboard keys;
 	private String problem = "";
 	private String pendingDevName;
 
@@ -35,7 +36,7 @@ public class CreateProfileScreen extends SkinScreen {
 		name.setValue(pendingDevName != null ? pendingDevName : typed);
 		name.setResponder(this::typed);
 		int ky = y0 + 38;
-		OnScreenKeyboard keys = new OnScreenKeyboard(name, false);
+		keys = new OnScreenKeyboard(name, false);
 		keys.add(b -> addRenderableWidget(b), kx, ky);
 		create = addRenderableWidget(Button.builder(Component.literal("Create"), b -> create())
 				.bounds(kx, ky + 4 * 18 + 4, kw / 2 - 2, 20).build());
@@ -72,12 +73,18 @@ public class CreateProfileScreen extends SkinScreen {
 		if (!problem.isEmpty() && create != null) {
 			g.text(font, problem, create.getX(), create.getY() + 24, 0xFFFF8080);
 		}
+		if (create != null) g.text(font, keys.hint(), create.getX(), create.getY() + 36, 0xFFA0A0A0);
 	}
 
 	/** DevShots: show a typed name. */
 	void devName(String n) {
 		if (name != null) name.setValue(n);
 		pendingDevName = n;
+	}
+
+	@Override
+	public void tick() {
+		keys.tick();
 	}
 
 	@Override

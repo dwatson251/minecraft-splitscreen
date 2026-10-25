@@ -83,4 +83,12 @@ final class PadEdges {
 		}
 		return out;
 	}
+
+	/** X and Y (west, north) on this view's own pad, as bits 1 and 2; 0 without one. */
+	static int currentFaceButtons() {
+		ControllerEntity pad = Controlify.instance().getCurrentController().orElse(null);
+		if (pad == null || pad.input().isEmpty()) return 0;
+		ControllerStateView state = pad.input().get().stateNow();
+		return (state.isButtonDown(GamepadInputs.WEST_BUTTON) ? 1 : 0) | (state.isButtonDown(GamepadInputs.NORTH_BUTTON) ? 2 : 0);
+	}
 }
