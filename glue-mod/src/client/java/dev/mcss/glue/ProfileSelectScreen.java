@@ -25,6 +25,7 @@ public class ProfileSelectScreen extends DebouncedScreen {
 	private final Screen parent;
 	private final List<Card> cards = new ArrayList<>();
 	private Button edit;
+	private Card lastCard;
 	private float scroll = Float.NaN;
 	private String shown = "";
 	private int keepIndex = -1;
@@ -59,7 +60,8 @@ public class ProfileSelectScreen extends DebouncedScreen {
 		int y = Math.max(28, (height - CARD_H) / 2 - 12);
 		for (Profiles.Profile p : list) cards.add(addRenderableWidget(new Card(p, y)));
 		edit = addRenderableWidget(Button.builder(Component.literal("Edit profile"), b -> {
-			Card c = focusedCard();
+			// the card stays chosen while the pad is down on this button
+			Card c = lastCard;
 			if (c != null && isProfile(c.profile)) minecraft.gui.setScreen(new EditProfileScreen(this, c.profile));
 		}).bounds(width / 2 - 104, y + CARD_H + 8, 100, 20).build());
 		Button back = addRenderableWidget(Button.builder(Component.literal("Back"), b -> onClose())
@@ -77,6 +79,7 @@ public class ProfileSelectScreen extends DebouncedScreen {
 			if (idx == 0 && Profiles.active() == null && list.size() > (Splitscreen.HOST ? 2 : 1)) idx = Splitscreen.HOST ? 2 : 1;
 		}
 		setInitialFocus(cards.get(idx));
+		lastCard = cards.get(idx);
 		if (Float.isNaN(scroll)) scroll = idx * (CARD_W + GAP);
 	}
 
@@ -127,6 +130,7 @@ public class ProfileSelectScreen extends DebouncedScreen {
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
 		// slide so the focused card sits in the middle; cards past the edges simply run off the screen
 		Card f = focusedCard();
+		if (f != null) lastCard = f;
 		if (f != null) {
 			float target = cards.indexOf(f) * (CARD_W + GAP);
 			scroll += (target - scroll) * Math.min(1f, 0.25f * Math.max(1f, partialTick + 1f));
@@ -135,7 +139,7 @@ public class ProfileSelectScreen extends DebouncedScreen {
 		for (int i = 0; i < cards.size(); i++) {
 			cards.get(i).setX(Math.round(width / 2f - CARD_W / 2f + i * (CARD_W + GAP) - scroll));
 		}
-		edit.active = f != null && isProfile(f.profile);
+		edit.active = lastCard != null && isProfile(lastCard.profile);
 		super.extractRenderState(g, mouseX, mouseY, partialTick);
 
 		int top = cards.isEmpty() ? 20 : cards.get(0).getY() - 26;

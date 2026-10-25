@@ -10,12 +10,9 @@ import net.minecraft.network.chat.Component;
  * and the Steam keyboard isn't needed), Create. The new profile is chosen straight away.
  */
 public class CreateProfileScreen extends SkinScreen {
-	private static final String[] ROWS = {"1234567890", "QWERTYUIOP", "ASDFGHJKL_", "^ZXCVBNM<"};
-
 	private final ProfileSelectScreen parent;
 	private EditBox name;
 	private Button create;
-	private boolean shift = true;
 	private String problem = "";
 	private String pendingDevName;
 
@@ -26,7 +23,7 @@ public class CreateProfileScreen extends SkinScreen {
 
 	@Override
 	protected void init() {
-		int kw = 10 * 18 - 2, left = 100, gap = 12;
+		int kw = OnScreenKeyboard.WIDTH, left = 100, gap = 12;
 		int x0 = (width - (left + gap + kw)) / 2, y0 = Math.max(4, (height - 170) / 2);
 		addPicker(x0, y0 + 14, left);
 
@@ -38,46 +35,14 @@ public class CreateProfileScreen extends SkinScreen {
 		name.setValue(pendingDevName != null ? pendingDevName : typed);
 		name.setResponder(this::typed);
 		int ky = y0 + 38;
-		Button first = null;
-		for (int r = 0; r < ROWS.length; r++) {
-			for (int c = 0; c < ROWS[r].length(); c++) {
-				char key = ROWS[r].charAt(c);
-				Button b = addRenderableWidget(Button.builder(keyLabel(key), btn -> press(key))
-						.bounds(kx + c * 18, ky + r * 18, 16, 16).build());
-				if (first == null) first = b;
-			}
-		}
+		OnScreenKeyboard keys = new OnScreenKeyboard(name, false);
+		keys.add(b -> addRenderableWidget(b), kx, ky);
 		create = addRenderableWidget(Button.builder(Component.literal("Create"), b -> create())
 				.bounds(kx, ky + 4 * 18 + 4, kw / 2 - 2, 20).build());
 		addRenderableWidget(Button.builder(Component.literal("Back"), b -> onClose())
 				.bounds(kx + kw / 2 + 2, ky + 4 * 18 + 4, kw / 2 - 2, 20).build());
 		typed(name.getValue());
-		setInitialFocus(first);
-	}
-
-	private Component keyLabel(char key) {
-		// keys are 16 px wide: two characters at most
-		if (key == '^') return Component.literal(shift ? "AB" : "ab");
-		if (key == '<') return Component.literal("<");
-		return Component.literal(String.valueOf(shift ? key : Character.toLowerCase(key)));
-	}
-
-	private void press(char key) {
-		if (key == '^') {
-			shift = !shift;
-			rebuildWidgets();
-			return;
-		}
-		if (key == '<') {
-			name.deleteChars(-1);
-		} else {
-			name.insertText(String.valueOf(shift ? key : Character.toLowerCase(key)));
-			// like a phone keyboard: capital first letter, then lower case
-			if (shift && name.getValue().length() == 1) {
-				shift = false;
-				rebuildWidgets();
-			}
-		}
+		setInitialFocus(keys.first());
 	}
 
 	/** Keeps only valid characters (a real keyboard can type anything) and updates the Create button. */

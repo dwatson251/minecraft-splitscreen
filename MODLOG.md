@@ -164,3 +164,11 @@
 - minecraft-watch run by hand against 26.4-snapshot-5 opened issue #1: Fabric API is ready; Controlify, YACL and
   Sodium aren't yet; the glue doesn't compile because RenderPipelines and DynamicTexture moved and
   Screen.extractRenderState changed signature.
+- Playtest bugs (2026-10-25):
+  - "Edit profile" was greyed out on a pad: it was enabled only while a card had focus, so moving down onto it
+    disabled it. It now acts on the last card focused.
+  - The first letter on the keyboard snapped focus to the skin arrows: the capital-first-letter switch rebuilt
+    the screen. The keyboard (now OnScreenKeyboard, shared) relabels its keys in place instead.
+  - No keyboard for the world name: A on any vanilla text box now opens TypeScreen (our keyboard plus Space)
+    through a mixin on Controlify's ScreenProcessor.tryOpenKeyboard, instead of Controlify's overlay. Chat and
+    our own screens are left alone. Steam's keyboard can't help, because its Enter, Space and arrows are dropped.
