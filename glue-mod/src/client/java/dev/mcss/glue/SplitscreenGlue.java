@@ -19,6 +19,7 @@ import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
@@ -30,8 +31,9 @@ import org.slf4j.Logger;
 /**
  * Every view first asks for a profile (ProfileSelectScreen). Host: no menus until Player 1 has a controller and a
  * profile; adds a "Splitscreen" settings button to its title screen and pause menu, and publishes whatever world it opens on LAN with authentication off, so offline-named guests can
- * join. Guest: never shows the menus; it waits on WaitingScreen for the host's port and joins; leaving the world
- * while the host's is still open shuts the guest down (its player has left). Every client: no pause
+ * join. Guest: never shows the menus; it waits on WaitingScreen for the host's port (or the server Player 1 is on,
+ * ServerFollow) and joins; leaving the world while the host's is still open shuts the guest down (its player has
+ * left). Every client: no pause
  * on focus loss (only one tile has focus), guests muted so audio isn't doubled. Controllers: Lobby (host) and
  * GuestPad (guests).
  */
@@ -57,12 +59,18 @@ public class SplitscreenGlue implements ClientModInitializer {
 			// the host closing the world (they wait and rejoin). SERVER_STOPPING runs before players are kicked.
 			ServerLifecycleEvents.SERVER_STARTED.register(server -> Splitscreen.write("world", "open"));
 			ServerLifecycleEvents.SERVER_STOPPING.register(server -> Splitscreen.write("world", "closed"));
+			ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> ServerFollow.hostJoined(mc));
+			ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> ServerFollow.hostLeft());
 		} else {
-			ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> leaveCheckAt = System.currentTimeMillis() + 300);
+			ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
+				ServerFollow.guestDisconnected();
+				leaveCheckAt = System.currentTimeMillis() + 300;
+			});
 			// guests never show the menus: the title screen and "disconnected" become the profile choice (first) and
 			// then "Waiting for Player 1's world"
 			ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
-				if (screen instanceof TitleScreen || screen instanceof DisconnectedScreen) {
+				if (screen instanceof DisconnectedScreen d) ServerFollow.guestRefused(d);
+				if (screen instanceof TitleScreen || screen instanceof DisconnectedScreen || screen instanceof JoinMultiplayerScreen) {
 					mc.execute(() -> {
 						if (mc.gui.screen() != screen) return;
 						mc.gui.setScreen(CONTROLIFY && Profiles.active() == null ? new ProfileSelectScreen(null) : new WaitingScreen());
@@ -160,27 +168,37 @@ public class SplitscreenGlue implements ClientModInitializer {
 		if (leaveCheckAt != 0 && System.currentTimeMillis() >= leaveCheckAt) {
 			leaveCheckAt = 0;
 			String world = Splitscreen.read("world");
-			if (world != null && world.trim().equals("open")) {
-				// the host's world is still up, so this player left it: close this view instead of showing a menu
+			boolean leftServer = ServerFollow.leftServer();
+			if ((world != null && world.trim().equals("open")) || leftServer) {
+				// the host's world (or server) is still up, so this player left it: close this view instead of a menu
 				LOG.info("[mcss] P{} left the world, shutting this client down", Splitscreen.PLAYER);
 				mc.stop();
 				return;
 			}
 			LOG.info("[mcss] host closed the world, waiting to rejoin");
 		}
+		ServerFollow.tick(mc);
 		if (!(mc.gui.screen() instanceof WaitingScreen) || probing) return;
 		probing = true;
 		Thread t = new Thread(() -> {
-			while (!portOpen()) {
+			// Player 1's server if it's on one (ServerFollow), else its LAN world once the port is open
+			String server;
+			while ((server = ServerFollow.toJoin()) == null && !portOpen()) {
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
 					return;
 				}
 			}
+			String to = server;
 			mc.execute(() -> {
 				probing = false;
 				if (!(mc.gui.screen() instanceof WaitingScreen)) return;
+				if (to != null) {
+					ServerFollow.connect(mc, to);
+					return;
+				}
+				ServerFollow.connectingToLan();
 				LOG.info("[mcss] joining 127.0.0.1:{}", Splitscreen.PORT);
 				ServerData data = new ServerData("Splitscreen", "127.0.0.1:" + Splitscreen.PORT, ServerData.Type.LAN);
 				ConnectScreen.startConnecting(mc.gui.screen(), mc, new ServerAddress("127.0.0.1", Splitscreen.PORT), data,

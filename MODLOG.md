@@ -205,3 +205,8 @@
     list doesn't scroll to the focused option. DevSodium (MCSS_DEV_SODIUM) checks it: 20 steps down reach Entity
     Shadows with the list scrolled, and a slider step changes Render Distance. Sodium's widgets only take focus
     after arrow or Tab input (Controlify reports its navigation as KEYBOARD_ARROW), so the test sets that.
+- Guests follow Player 1 onto a server (ServerFollow): P1's JOIN on a remote server writes mcss-control/server
+  (the address), DISCONNECT deletes it. A waiting guest connects to it (else the LAN port, as before), leaves when
+  P1 does, and closes its view when its player leaves by themselves. Refused or kicked: the waiting screen shows the
+  reason ("needs online-mode=false") and no retry until P1 is on another server. Tested locally with one dev
+  guest (Bob) against dnlwtsn.co.uk:25565 (online-mode=false): joined, followed P1 out, refused by a bad host.
