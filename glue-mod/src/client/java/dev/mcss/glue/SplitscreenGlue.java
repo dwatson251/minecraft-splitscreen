@@ -64,6 +64,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 			ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> ServerFollow.hostJoined(mc));
 			ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> ServerFollow.hostLeft());
 		} else {
+			ClientPlayConnectionEvents.JOIN.register((handler, sender, mc) -> ServerFollow.guestJoined());
 			ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
 				ServerFollow.guestDisconnected();
 				leaveCheckAt = System.currentTimeMillis() + 300;

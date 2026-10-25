@@ -247,3 +247,11 @@
   - Edit profile ran off the bottom at 1280x720 (and worse in a split tile). It's now two columns like New profile.
   - Controlify's keyboard shot was dropped: without a controller its special keys render as boxes. The smoke test
     now also checks edit-profile and update.
+- "Connection throttled" when guests follow P1 onto a Paper/Spigot server: every view connects from the same IP,
+  and Bukkit's connection-throttle (bukkit.yml, 4000 ms; Velocity login-ratelimit) refuses a second login within
+  4 s. Server side: connection-throttle: -1. Our side (ServerFollow):
+  - guests make their first attempt (PLAYER-2) * 4.5 s after seeing P1's server;
+  - a "throttled" / "too fast" refusal isn't final: retry after 5 s, 10 s, ... up to 30 s, with the waiting screen
+    saying "<server> is busy, trying again...". A successful join resets the back-off.
+  - Tested against a fake login server (scratch Python, the login Disconnect packet): two throttles retried at
+    +6 s and +10 s, then a different refusal shown as final.

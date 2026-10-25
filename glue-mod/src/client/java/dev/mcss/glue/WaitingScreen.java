@@ -21,7 +21,7 @@ public class WaitingScreen extends DebouncedScreen {
 	private static String state() {
 		Component refusal = ServerFollow.refusal();
 		return Splitscreen.shown + "|" + GuestPad.controllerName() + "|" + ServerFollow.hostServer() + "|"
-				+ (refusal == null ? "" : refusal.getString());
+				+ (refusal == null ? "" : refusal.getString()) + "|" + ServerFollow.retrying();
 	}
 
 	@Override
@@ -40,7 +40,9 @@ public class WaitingScreen extends DebouncedScreen {
 			center(Component.literal("Guests need a server with online-mode=false."), y + 40);
 			y += 24;
 		} else {
-			center(Component.literal(server == null ? "Waiting for Player 1's world..." : "Joining Player 1 on " + server + "..."), y + 16);
+			String line = server == null ? "Waiting for Player 1's world..."
+					: ServerFollow.retrying() ? server + " is busy, trying again..." : "Joining Player 1 on " + server + "...";
+			center(Component.literal(line), y + 16);
 		}
 		String pad = GuestPad.controllerName();
 		center(Component.literal(pad == null ? "Press any button on your controller" : "Controller: " + pad), y + 36);
