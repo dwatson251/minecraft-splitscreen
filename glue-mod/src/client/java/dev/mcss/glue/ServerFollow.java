@@ -12,8 +12,9 @@ import net.minecraft.network.chat.Component;
  * Guests follow Player 1 onto a multiplayer server, as they follow a LAN world. Player 1 publishes the address it's
  * on ("server" in mcss-control); a waiting guest connects to it, and leaves again when Player 1 does.
  *
- * Guests play offline profiles, so only servers with online-mode=false let them in. When a server refuses (or kicks)
- * a guest, the waiting screen says why, and that guest doesn't retry until Player 1 moves to another server.
+ * Guests play offline profiles, so only servers with online-mode=false let them in. When a server refuses a guest at
+ * login, the waiting screen says why, and that guest doesn't retry until Player 1 leaves that server (and comes back,
+ * or moves to another). A guest kicked while playing (a server restart, say) rejoins by itself a few seconds later.
  *
  * Every view connects from the same address, and servers limit connections per address (Bukkit's
  * connection-throttle, 4 s by default; Velocity's login-ratelimit). So guests make their first attempt a few
@@ -30,6 +31,8 @@ final class ServerFollow {
 	private static volatile int throttled;
 	/** When this guest first saw Player 1 on the current server (the staggered first attempt counts from it). */
 	private static volatile String seen;
+	/** In the world on the server it connected to (a kick then isn't a refusal). */
+	private static volatile boolean playing;
 	private static volatile long seenAt;
 	private static final long STAGGER_MS = 4500;
 
@@ -59,7 +62,14 @@ final class ServerFollow {
 	/** Guest, waiting: the server to join now, or null (none, refused, or not this guest's turn yet). */
 	static String toJoin() {
 		String s = hostServer();
-		if (s == null || s.equals(refused)) return null;
+		if (s == null) {
+			// Player 1 left: a refusal was for that visit only (the server may be fixed when Player 1 is back)
+			refused = null;
+			refusedReason = null;
+			seen = null;
+			return null;
+		}
+		if (s.equals(refused)) return null;
 		long now = System.currentTimeMillis();
 		if (!s.equals(seen)) {
 			seen = s;
@@ -81,10 +91,12 @@ final class ServerFollow {
 	static void guestJoined() {
 		throttled = 0;
 		retryAt = 0;
+		playing = joining != null;
 	}
 
 	static void connect(Minecraft mc, String address) {
 		joining = address;
+		playing = false;
 		SplitscreenGlue.LOG.info("[mcss] following Player 1 to {}", address);
 		ServerData data = new ServerData("Player 1's server", address, ServerData.Type.OTHER);
 		ConnectScreen.startConnecting(mc.gui.screen(), mc, ServerAddress.parseString(address), data, false, null);
@@ -104,6 +116,15 @@ final class ServerFollow {
 		if (joining == null) return;
 		Component reason = ((DisconnectedScreenAccessor) screen).mcss$details().reason();
 		String text = reason.getString().toLowerCase(java.util.Locale.ROOT);
+		if (playing) {
+			// kicked while playing (a server restart, say): not a refusal; rejoin once Player 1 is back on it
+			SplitscreenGlue.LOG.info("[mcss] {} disconnected P{} while playing ({}), rejoining", joining, Splitscreen.PLAYER,
+					reason.getString());
+			playing = false;
+			retryAt = System.currentTimeMillis() + 5_000L + (Splitscreen.PLAYER - 2) * 1_500L;
+			joining = null;
+			return;
+		}
 		if (text.contains("throttled") || text.contains("too fast")) {
 			// Bukkit "Connection throttled! Please wait before reconnecting.", Velocity "logging in too fast"
 			throttled++;

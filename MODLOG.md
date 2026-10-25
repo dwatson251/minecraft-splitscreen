@@ -255,3 +255,8 @@
     saying "<server> is busy, trying again...". A successful join resets the back-off.
   - Tested against a fake login server (scratch Python, the login Disconnect packet): two throttles retried at
     +6 s and +10 s, then a different refusal shown as final.
+- A server restart left guests out: the kick ("Disconnected") was taken as a login refusal, final until P1 moved to
+  another server, and P1 came back to the same one. Now a guest kicked while playing rejoins by itself (5 s, then
+  when P1 is back on the server), and P1 leaving a server forgets refusals from that visit. Tested: refused by a
+  bad host, P1 "leaves" and returns to the same address, and the guest tries again. Also confirmed in the wild:
+  the Deck updated itself v0.8.0 -> v0.8.1 (offer, download, restart in the same KWin, backup kept).
