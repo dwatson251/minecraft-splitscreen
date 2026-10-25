@@ -1,1 +1,1 @@
-{"required": true, "package": "dev.mcss.glue.mixin", "compatibilityLevel": "JAVA_25", "client": ["ControlifyMixin", "MinecraftMixin", "PlayerInfoMixin", "UserMixin"], "injectors": {"defaultRequire": 1}}
+{"required": true, "package": "dev.mcss.glue.mixin", "compatibilityLevel": "JAVA_25", "client": ["ControlifyMixin", "KeyboardHandlerMixin", "MinecraftMixin", "PlayerInfoMixin", "UserMixin"], "injectors": {"defaultRequire": 1}}

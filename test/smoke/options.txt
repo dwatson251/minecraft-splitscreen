@@ -1,0 +1,7 @@
+guiScale:3
+onboardAccessibility:false
+skipMultiplayerWarning:true
+joinedFirstServer:true
+tutorialStep:none
+renderDistance:6
+soundCategory_master:0.0

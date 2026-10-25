@@ -1,0 +1,145 @@
+# Daily: is there a Minecraft release newer than the one we're pinned to? If so, check that our dependencies
+# have builds for it, compile the glue mod against it, and run the in-game smoke test, then open (or update) an
+# issue "Minecraft <version> support" with the results. If everything passes, also open a PR with the new pins.
+# Run it by hand to test any version (including snapshots).
+name: minecraft-watch
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Minecraft version to test (empty = latest release)'
+        required: false
+      snapshots:
+        description: 'Follow the latest snapshot instead of the latest release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: minecraft-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Look for a new Minecraft
+        id: check
+        run: |
+          args=()
+          [ -n "${{ inputs.version }}" ] && args+=(--version "${{ inputs.version }}")
+          [ "${{ inputs.snapshots }}" = "true" ] && args+=(--snapshots)
+          python3 scripts/mc-compat.py check "${args[@]}" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Nothing new
+        if: steps.check.outputs.is_new != 'true'
+        run: |
+          echo "Pinned to ${{ steps.check.outputs.current }}, the latest is ${{ steps.check.outputs.target }}; nothing to do."
+
+      - uses: actions/setup-java@v4
+        if: steps.check.outputs.is_new == 'true'
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.check.outputs.is_new == 'true'
+
+      - name: Tools for the smoke test
+        if: steps.check.outputs.is_new == 'true'
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri mesa-utils && pip install pillow
+
+      - name: Pin the new version
+        if: steps.check.outputs.is_new == 'true'
+        run: python3 scripts/mc-compat.py apply
+
+      - name: Fetch mods
+        id: mods
+        if: steps.check.outputs.is_new == 'true' && steps.check.outputs.deps_ready == 'true'
+        continue-on-error: true
+        run: MC=${{ steps.check.outputs.target }} scripts/fetch-mods.sh
+
+      - name: Compile the glue mod
+        id: build
+        if: steps.check.outputs.is_new == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p build/compat .tools
+          # compile against the previous Controlify jar if the new version has none yet
+          [ -n "$(ls .tools/controlify-*.jar 2>/dev/null)" ] || curl -fsSL -o ".tools/controlify-$(sed -n 's/^controlify_version=//p' glue-mod/gradle.properties).jar" \
+            "$(curl -fsS 'https://api.modrinth.com/v2/project/controlify/version?loaders=%5B%22fabric%22%5D' | python3 -c 'import json,sys; print([f for f in json.load(sys.stdin)[0]["files"] if f["primary"]][0]["url"])')"
+          if (cd glue-mod && ./gradlew --console=plain build) > build/compat/build.log 2>&1; then
+            echo "✅ compiles" > build/compat/build.txt
+          else
+            { echo "❌ does not compile"; grep -E "error:|What went wrong" -A3 build/compat/build.log | head -60; } > build/compat/build.txt
+            exit 1
+          fi
+
+      - name: In-game smoke test
+        id: smoke
+        if: steps.check.outputs.is_new == 'true' && steps.build.outcome == 'success' && steps.mods.outcome == 'success'
+        continue-on-error: true
+        run: scripts/smoke-test.sh
+
+      - name: Report
+        if: steps.check.outputs.is_new == 'true'
+        run: |
+          python3 scripts/mc-compat.py report --build build/compat/build.txt --smoke build/smoke/result.txt \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.is_new == 'true'
+        with:
+          name: minecraft-${{ steps.check.outputs.target }}-compat
+          path: |
+            build/compat
+            build/smoke
+          if-no-files-found: ignore
+
+      - name: Open or update the issue
+        if: steps.check.outputs.is_new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ steps.check.outputs.target }}
+        run: |
+          gh label create minecraft-update --color 5319e7 --description "A new Minecraft version to support" 2>/dev/null || true
+          title="Minecraft $TARGET support"
+          num=$(gh issue list --state open --label minecraft-update --search "\"$title\" in:title" --json number,title \
+            -q ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body-file build/compat/report.md
+          else
+            gh issue create --title "$title" --label minecraft-update --body-file build/compat/report.md
+          fi
+
+      - name: Open a PR when everything passed
+        if: steps.check.outputs.is_new == 'true' && steps.smoke.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ steps.check.outputs.target }}
+        run: |
+          branch="minecraft-$TARGET"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "PR branch $branch already exists"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add glue-mod/gradle.properties
+          git commit -m "Support Minecraft $TARGET (pins from the minecraft-watch check)"
+          git push origin "$branch"
+          gh pr create --title "Support Minecraft $TARGET" --body-file build/compat/report.md --label minecraft-update

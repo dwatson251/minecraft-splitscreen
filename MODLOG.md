@@ -132,3 +132,23 @@
   - The first try caught the Mojang loading overlay, so DevShots now waits for gui.overlay() == null.
   - The screenshots exposed real label truncation: the "ABC"/"Del" keys became "AB"/"<", and the "Create
     profile" card became "New profile".
+
+## 2026-10-25, quit prompt, Minecraft watch, RAM cap
+- Bug report from another Deck: Player 1 = PS4 and a guest pressed A, which closed everything. In Desktop Mode,
+  Steam's desktop layouts (controller_base/desktop_neptune.vdf, desktop_ps4.vdf) send A=Enter, B=Escape,
+  Y=Space and the D-pad as arrows to the focused window (Player 1's), so a guest's A could press Player 1's Quit
+  Game. Fixes:
+  - Under Steam, AppRun uses kwin --x11-display even on Plasma. Steam can see an X11 window and applies the
+    game's layout.
+  - KeyboardHandlerMixin drops those keys in every view.
+  - Quit Game asks first (QuitScreen: No selected, Yes armed after 0.7 s), and Minecraft.stop logs its caller.
+  - Locally DevShots pressed Quit and got the prompt. On the Deck the user still quit with no prompt seen,
+    probably via the old ConfirmScreen (Yes focused, double A), before QuitScreen existed. Awaiting a retest.
+- minecraft-watch.yml: a daily check against Mojang's manifest. scripts/mc-compat.py checks Fabric meta and
+  Modrinth deps, pins the versions and writes the report. Then compile + scripts/smoke-test.sh (DevShots under
+  xvfb), an issue "Minecraft <v> support" (label minecraft-update), and a PR when everything passes. The smoke
+  test also gates releases in release.yml.
+- WSL hung during the multi-client split-screen capture (2 clients at -Xmx2G + a Gradle daemon). Local runs now
+  go through scripts/capped.sh (a systemd user scope, MemoryMax=3G, swap off). The dev client and dev-split
+  heaps are -Xmx1G and Gradle is -Xmx1536m. The full smoke test passes inside the 3 GB cap. 3-4 simultaneous
+  clients don't fit locally; split-2p-horizontal.png is the only composite so far.

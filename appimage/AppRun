@@ -64,10 +64,13 @@ LatencyPolicy=Low
 FocusPolicy=ClickToFocus
 CFG
 W=${MCSS_WIDTH:-1280}; H=${MCSS_HEIGHT:-800}
-if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -z "${SteamGamepadUI:-}" ]; then
+# Desktop Mode outside Steam: a Wayland window on Plasma. Under Steam it's an X11 window instead, even on Plasma:
+# Steam only applies the game's controller layout to a window it can see (it's an X11 client), otherwise it uses
+# its desktop layout, which turns every pad's A into Enter, B into Escape, the D-pad into arrow keys.
+if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -z "${SteamGamepadUI:-}" ] && [ -z "${SteamAppId:-}" ]; then
 	BACKEND=(--wayland-display "$WAYLAND_DISPLAY")   # Desktop Mode: a window on Plasma
 else
-	BACKEND=(--x11-display "${DISPLAY:-:0}")         # Game Mode: a window on gamescope's Xwayland
+	BACKEND=(--x11-display "${DISPLAY:-:0}")         # Game Mode (gamescope's Xwayland), or Steam on Plasma
 	if command -v xdpyinfo >/dev/null; then
 		read -r W H < <(xdpyinfo -display "${DISPLAY:-:0}" | sed -n 's/.*dimensions: *\([0-9]*\)x\([0-9]*\).*/\1 \2/p' | head -1)
 	fi

@@ -49,6 +49,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 		LOG.info("[mcss] P{} {} port {}", Splitscreen.PLAYER,
 				Splitscreen.HOST ? "host" : "guest", Splitscreen.PORT);
 		ClientLifecycleEvents.CLIENT_STARTED.register(this::setOptions);
+		ClientLifecycleEvents.CLIENT_STARTED.register(mc -> DevSplit.start());
 		if (!Splitscreen.HOST && CONTROLIFY) ClientLifecycleEvents.CLIENT_STOPPING.register(mc -> GuestPad.leave());
 		ClientTickEvents.END_CLIENT_TICK.register(this::tick);
 		if (Splitscreen.HOST) {
@@ -80,9 +81,31 @@ public class SplitscreenGlue implements ClientModInitializer {
 						}
 					});
 					Screens.getWidgets(screen).add(settingsButton(mc, screen));
+					confirmQuit(mc, screen);
 				}
 			});
 		}
+	}
+
+	/**
+	 * Player 1 quitting ends the game for everyone, so the title screen's Quit Game asks first: one stray press
+	 * (a guest's A arriving as Enter in Desktop Mode) can't end the session.
+	 */
+	private static void confirmQuit(Minecraft mc, Screen screen) {
+		String quit = net.minecraft.client.resources.language.I18n.get("menu.quit");
+		var widgets = Screens.getWidgets(screen);
+		for (int i = 0; i < widgets.size(); i++) {
+			if (!(widgets.get(i) instanceof Button b) || !b.getMessage().getString().equals(quit)) continue;
+			Button ask = Button.builder(b.getMessage(), x -> mc.gui.setScreen(new QuitScreen(screen)))
+					.bounds(b.getX(), b.getY(), b.getWidth(), b.getHeight()).build();
+			b.visible = false;
+			b.active = false;
+			widgets.add(ask);
+			LOG.info("[mcss] Quit Game now asks first");
+			return;
+		}
+		LOG.warn("[mcss] no Quit Game button found on {}: {}", screen.getClass().getSimpleName(),
+				widgets.stream().map(w -> w.getClass().getSimpleName() + "'" + w.getMessage().getString() + "'").toList());
 	}
 
 	/** Top-left "Splitscreen" button on Player 1's title screen and pause menu: layout and players. */
@@ -103,6 +126,7 @@ public class SplitscreenGlue implements ClientModInitializer {
 
 	private void tick(Minecraft mc) {
 		DevShots.tick(mc);
+		DevSplit.tick(mc);
 		if (CONTROLIFY) {
 			Profiles.tick();
 			try {

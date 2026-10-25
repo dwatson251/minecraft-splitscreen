@@ -13,6 +13,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(Minecraft.class)
 public class MinecraftMixin {
+	/** Who ended this client: a stack trace in the log, so an unexpected quit can be traced to its cause. */
+	@Inject(method = "stop", at = @At("HEAD"))
+	private void mcss$logStop(org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+		if (Splitscreen.ENABLED) dev.mcss.glue.SplitscreenGlue.LOG.info("[mcss] P{} stop requested", Splitscreen.PLAYER,
+				new Throwable("stop called from"));
+	}
+
 	@Inject(method = "createTitle", at = @At("RETURN"), cancellable = true)
 	private void mcss$playerTitle(CallbackInfoReturnable<String> cir) {
 		if (Splitscreen.ENABLED) cir.setReturnValue(Splitscreen.titlePrefix() + cir.getReturnValue());

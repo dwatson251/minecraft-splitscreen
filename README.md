@@ -66,6 +66,8 @@ P1 starts alone:
     immediately and is remembered.
   - **Players:** who is playing with which controller.
 
+![Two players, horizontal layout: Player 1 (Alice) on top sees Bob; Player 2 (Bob) below sees Alice](docs/screenshots/split-2p-horizontal.png)
+
 | A guest waiting for the world | Splitscreen settings | Player 1's pause menu |
 | --- | --- | --- |
 | ![Player 2 (profile Kai) waiting for Player 1's world, with Cancel](docs/screenshots/waiting.png) | ![Splitscreen settings: layout, players, profile](docs/screenshots/settings.png) | ![Pause menu with the Splitscreen button at the top left](docs/screenshots/pause-menu.png) |
@@ -75,6 +77,21 @@ see `DevShots.java`). On the Deck the same screens fill each player's part of th
 
 Under Steam the clients read the real controllers, not Steam Input's virtual pads. Steam's virtual pads all look
 the same to the game, so they can't be told apart.
+
+## Keeping up with new Minecraft versions
+`.github/workflows/minecraft-watch.yml` runs every day. It also has a manual **Run workflow** button, which can
+test any version, including snapshots.
+- It compares Mojang's latest release with the version this repo is pinned to (`glue-mod/gradle.properties`).
+- For a newer version, it checks:
+  - that Fabric, Fabric API, Controlify, YACL and Sodium have builds for it;
+  - that the glue mod compiles against it;
+  - the **in-game smoke test** (`scripts/smoke-test.sh`). The real client runs under a virtual display, goes
+    through every screen and creates a world, so a failed mixin, a crash or a missing screen fails it.
+- It opens an issue **"Minecraft <version> support"** with the results, logs and screenshots, and adds to it
+  every day until the version is supported.
+- When everything passes, it also opens a PR with the new version pins.
+
+The same smoke test runs on every push and pull request, and a release is only published if it passes.
 
 ## Logs
 `~/.local/state/mc-splitscreen/` holds `apprun.log`, `kwin.log` and `prism.log`. Each client's game log is in

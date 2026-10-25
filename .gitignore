@@ -6,3 +6,4 @@ dist/
 run/
 build.log
 runclient.log
+smoke-run.log

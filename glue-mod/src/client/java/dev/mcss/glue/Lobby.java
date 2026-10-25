@@ -146,7 +146,7 @@ final class Lobby {
 
 	/** True once Player 1 (the host's own view) has a controller. */
 	static boolean hostReady() {
-		if (DevShots.ACTIVE) return true;
+		if (DevShots.ACTIVE || DevSplit.ACTIVE) return true;
 		Slot p1 = SLOTS.get(1);
 		return p1 != null && p1.pad != null;
 	}
@@ -179,6 +179,7 @@ final class Lobby {
 	}
 
 	static void toast(String title, String text) {
+		if (DevSplit.ACTIVE) return;  // keep the dev split-screen pictures clean
 		SystemToast.addOrUpdate(Minecraft.getInstance().gui.toastManager(), SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
 				Component.literal(title), Component.literal(text));
 	}

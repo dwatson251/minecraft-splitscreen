@@ -68,15 +68,30 @@ final class DevShots {
 				mc.gui.setScreen(new WaitingScreen());
 			}
 			case 6 -> shot(mc, "waiting");
-			case 7 -> {
+			case 7 -> {  // Player 1's title screen, then press Quit Game like a controller would
 				Splitscreen.shown = 1;
 				Profiles.activate(Profiles.byName("Alice"));
+				mc.gui.setScreen(title);
+			}
+			case 8 -> {
+				for (var w : net.fabricmc.fabric.api.client.screen.v1.Screens.getWidgets(mc.gui.screen())) {
+					if (w.visible && w.active && w.getMessage().getString().equals("Quit Game")) {
+						SplitscreenGlue.LOG.info("[mcss] dev: pressing {}", w.getClass().getSimpleName());
+						((net.minecraft.client.gui.components.AbstractButton) w).onPress(
+								new net.minecraft.client.input.KeyEvent(com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, 0, 0));
+						break;
+					}
+				}
+			}
+			case 9 -> shot(mc, "quit-confirm");
+			case 10 -> {
+				mc.gui.setScreen(title);
 				LevelSettings settings = new LevelSettings("Screenshots", GameType.CREATIVE,
 						new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
 				mc.createWorldOpenFlows().createFreshLevel("Screenshots-" + System.currentTimeMillis(), settings,
 						new WorldOptions(2026L, true, false), WorldPresets::createNormalWorldDimensions, title);
 			}
-			case 8 -> {  // wait for the world, then look at the player from the front
+			case 11 -> {  // wait for the world, then look at the player from the front
 				if (mc.player == null || mc.level == null) {
 					wait = 20;
 					return;
@@ -85,9 +100,9 @@ final class DevShots {
 				mc.player.setXRot(10);
 				wait = 200;  // chunks
 			}
-			case 9 -> shot(mc, "in-game");
-			case 10 -> mc.gui.setScreen(new PauseScreen(true));
-			case 11 -> shot(mc, "pause-menu");
+			case 12 -> shot(mc, "in-game");
+			case 13 -> mc.gui.setScreen(new PauseScreen(true));
+			case 14 -> shot(mc, "pause-menu");
 			default -> {
 				SplitscreenGlue.LOG.info("[mcss] dev screenshots done");
 				mc.stop();
