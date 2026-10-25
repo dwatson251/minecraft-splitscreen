@@ -76,9 +76,16 @@ jobs:
           name: appimage
           path: ${{ env.APPIMAGE }}
 
+      # the same file under a fixed name too, so README's releases/latest/download link always gets the newest
+      - name: Fixed-name copy for the latest-release link
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: cp "$APPIMAGE" dist/MinecraftSplitscreen-x86_64.AppImage
+
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: ${{ env.APPIMAGE }}
+          files: |
+            ${{ env.APPIMAGE }}
+            dist/MinecraftSplitscreen-x86_64.AppImage
           generate_release_notes: true

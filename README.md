@@ -9,6 +9,9 @@ profile (name and skin). Whatever world Player 1 opens is shared on LAN, and Pla
 A small Fabric mod (`glue-mod/`) does the joining, the profiles, the window titles and the controller
 assignment. Controlify handles the controller input itself.
 
+**[⬇ Download the latest AppImage](https://github.com/dwatson251/minecraft-splitscreen/releases/latest/download/MinecraftSplitscreen-x86_64.AppImage)**
+(x86_64; older versions and release notes are on the [releases page](https://github.com/dwatson251/minecraft-splitscreen/releases))
+
 ![Choosing a profile: New profile first, Player 1's Microsoft account, then saved profiles; Bob is in use by another player](docs/screenshots/profiles.png)
 
 ## Requirements
@@ -18,7 +21,8 @@ assignment. Controlify handles the controller input itself.
 - About 2.5 GB RAM per player. Four players fit in the Deck's 16 GB, with lower render distances for guests.
 
 ## Install
-1. Download `MinecraftSplitscreen-*.AppImage` from Releases into `~/Applications/` and make it executable
+1. [Download the latest AppImage](https://github.com/dwatson251/minecraft-splitscreen/releases/latest/download/MinecraftSplitscreen-x86_64.AppImage)
+   into `~/Applications/` and make it executable
    (Dolphin: Properties → Permissions → "Is executable").
 2. Open Prism Launcher once, add your Microsoft account (Accounts → Manage Accounts → Add Microsoft), then close
    it.
