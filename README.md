@@ -52,7 +52,7 @@ P1 starts alone:
   That works at any time, up to 4 players. While Player 1 is alone, a reminder pops up now and then.
 - A new view shows **Waiting for Player 1's world…** (guests never see the menus) and "Press any button on your
   controller". After a couple of presses it finds its controller. It joins Player 1's world as soon as it's
-  open, and **Cancel** closes that view.
+  open. **Back** returns to profile selection, where **Leave** closes that view.
 - Player 1 opens or creates any world. The others join it as soon as it's open, and rejoin by themselves if
   Player 1 switches worlds.
 - **Players 2–4 leave** by leaving the world (Disconnect in their pause menu): their view closes straight away.
@@ -76,7 +76,7 @@ Every layout, captured on a Steam Deck (each view at its real size; the profiles
 
 | A guest waiting for the world | Splitscreen settings | Player 1's pause menu |
 | --- | --- | --- |
-| ![Player 2 (profile Kai) waiting for Player 1's world, with Cancel](docs/screenshots/waiting.png) | ![Splitscreen settings: layout, players, profile](docs/screenshots/settings.png) | ![Pause menu with the Splitscreen button at the top left](docs/screenshots/pause-menu.png) |
+| ![Player 2 (profile Kai) waiting for Player 1's world](docs/screenshots/waiting.png) | ![Splitscreen settings: layout, players, profile](docs/screenshots/settings.png) | ![Pause menu with the Splitscreen button at the top left](docs/screenshots/pause-menu.png) |
 
 The menu screenshots come from one desktop window (`MCSS_DEV_SHOTS=<folder> ./gradlew runClient` in `glue-mod/`,
 see `DevShots.java`). On the Deck the same screens fill each player's part of the split screen. The layout

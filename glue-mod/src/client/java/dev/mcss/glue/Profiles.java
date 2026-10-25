@@ -222,6 +222,13 @@ public final class Profiles {
 		return true;
 	}
 
+	/** Stops playing as any profile (a guest going back from the waiting screen), freeing its lock. */
+	public static void deactivate() {
+		release();
+		active = null;
+		SplitscreenGlue.LOG.info("[mcss] P{} has no profile again", Splitscreen.PLAYER);
+	}
+
 	private static void release() {
 		Profile p = active;
 		if (p == null) return;

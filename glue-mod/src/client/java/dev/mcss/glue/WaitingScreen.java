@@ -6,12 +6,12 @@ import net.minecraft.network.chat.Component;
 
 /**
  * What a guest (Players 2-4) shows instead of the title screen or the "disconnected" screen: it waits for Player
- * 1's world and joins it by itself (SplitscreenGlue.tickGuest). Cancel closes this view and frees the player's
- * place; Esc and the controller's back button do nothing, so a guest never lands in the menus.
+ * 1's world and joins it by itself (SplitscreenGlue.tickGuest). Back (or the controller's back button) returns to
+ * profile selection, where Leave closes this view; a guest never lands in the menus.
  */
 public class WaitingScreen extends DebouncedScreen {
 	private String shown = "";
-	private Button cancel;
+	private Button back;
 
 	public WaitingScreen() {
 		super(Component.literal("Waiting for Player 1's world"));
@@ -30,11 +30,9 @@ public class WaitingScreen extends DebouncedScreen {
 		center(Component.literal("Waiting for Player 1's world..."), y + 16);
 		String pad = GuestPad.controllerName();
 		center(Component.literal(pad == null ? "Press any button on your controller" : "Controller: " + pad), y + 36);
-		cancel = addRenderableWidget(Button.builder(Component.literal("Cancel"), b -> {
-			SplitscreenGlue.LOG.info("[mcss] P{} cancelled while waiting", Splitscreen.PLAYER);
-			minecraft.stop();
-		}).bounds(width / 2 - 50, y + 60, 100, 20).build());
-		setInitialFocus(cancel);
+		back = addRenderableWidget(Button.builder(Component.literal("Back"), b -> onClose())
+				.bounds(width / 2 - 50, y + 60, 100, 20).build());
+		setInitialFocus(back);
 	}
 
 	private void center(Component text, int y) {
@@ -48,11 +46,9 @@ public class WaitingScreen extends DebouncedScreen {
 	}
 
 	@Override
-	public boolean shouldCloseOnEsc() {
-		return false;
-	}
-
-	@Override
 	public void onClose() {
+		Profiles.deactivate();
+		minecraft.updateTitle();
+		minecraft.gui.setScreen(new ProfileSelectScreen(null));
 	}
 }

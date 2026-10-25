@@ -179,3 +179,6 @@
   - Pad shortcuts on the keyboard: X = backspace, Y = space (no space in profile names).
   - TypeScreen's Done also fills a rebuilt box at the same position, because screens without their own
     repositionElements (e.g. Direct Connect) rebuild their widgets when shown again.
+  - Guests: the waiting screen's Cancel (closed the view) is now Back to profile selection (Profiles.deactivate
+    frees the lock; auto-join only runs on WaitingScreen). The guest's profile screen gets Leave instead of a
+    greyed Back, so a guest can still close its view.

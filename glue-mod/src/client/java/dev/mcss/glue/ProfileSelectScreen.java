@@ -64,9 +64,15 @@ public class ProfileSelectScreen extends DebouncedScreen {
 			Card c = lastCard;
 			if (c != null && isProfile(c.profile)) minecraft.gui.setScreen(new EditProfileScreen(this, c.profile));
 		}).bounds(width / 2 - 104, y + CARD_H + 8, 100, 20).build());
-		Button back = addRenderableWidget(Button.builder(Component.literal("Back"), b -> onClose())
-				.bounds(width / 2 + 4, y + CARD_H + 8, 100, 20).build());
-		back.active = canLeave();
+		// a guest that hasn't joined yet can close its view from here (freeing its place); Player 1 goes back
+		boolean guestLeave = !Splitscreen.HOST && parent == null;
+		Button back = addRenderableWidget(Button.builder(Component.literal(guestLeave ? "Leave" : "Back"), b -> {
+			if (guestLeave) {
+				SplitscreenGlue.LOG.info("[mcss] P{} left from profile selection", Splitscreen.PLAYER);
+				minecraft.stop();
+			} else onClose();
+		}).bounds(width / 2 + 4, y + CARD_H + 8, 100, 20).build());
+		back.active = guestLeave || canLeave();
 
 		// focus: the card we were on, else the profile in use, else the first saved profile, else Create
 		int idx = keepIndex;
