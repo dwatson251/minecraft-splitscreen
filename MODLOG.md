@@ -240,3 +240,10 @@
     harness against a fake release (good, bad digest, nothing to install). The restart and rollback across real
     AppImages wasn't tested: the user can't test before the tag, so any fixes ship as patches.
 - v0.8.1: a version bump (and a README line) to test the self-update from v0.8.0 on the Deck.
+- README screenshots refreshed:
+  - DevShots, local, 1280x720: profiles, create-profile, edit-profile (new), settings (Updates + version),
+    waiting (Back), update (new), in-game, pause-menu.
+  - joining.png (new): the in-game shot over the loading tile, which qml6 rendered off-screen on the Deck.
+  - Edit profile ran off the bottom at 1280x720 (and worse in a split tile). It's now two columns like New profile.
+  - Controlify's keyboard shot was dropped: without a controller its special keys render as boxes. The smoke test
+    now also checks edit-profile and update.

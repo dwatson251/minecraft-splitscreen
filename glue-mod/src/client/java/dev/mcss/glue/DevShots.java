@@ -84,14 +84,18 @@ final class DevShots {
 				}
 			}
 			case 9 -> shot(mc, "quit-confirm");
-			case 10 -> {
+			case 10 -> mc.gui.setScreen(new EditProfileScreen(select, Profiles.byName("Alice")));
+			case 11 -> shot(mc, "edit-profile");
+			case 12 -> mc.gui.setScreen(UpdateScreen.offer(title, "v0.9.0"));
+			case 13 -> shot(mc, "update");
+			case 14 -> {
 				mc.gui.setScreen(title);
 				LevelSettings settings = new LevelSettings("Screenshots", GameType.CREATIVE,
 						new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
 				mc.createWorldOpenFlows().createFreshLevel("Screenshots-" + System.currentTimeMillis(), settings,
 						new WorldOptions(2026L, true, false), WorldPresets::createNormalWorldDimensions, title);
 			}
-			case 11 -> {  // wait for the world, then look at the player from the front
+			case 15 -> {  // wait for the world, then look at the player from the front
 				if (mc.player == null || mc.level == null) {
 					wait = 20;
 					return;
@@ -100,9 +104,9 @@ final class DevShots {
 				mc.player.setXRot(10);
 				wait = 200;  // chunks
 			}
-			case 12 -> shot(mc, "in-game");
-			case 13 -> mc.gui.setScreen(new PauseScreen(true));
-			case 14 -> shot(mc, "pause-menu");
+			case 16 -> shot(mc, "in-game");
+			case 17 -> mc.gui.setScreen(new PauseScreen(true));
+			case 18 -> shot(mc, "pause-menu");
 			default -> {
 				SplitscreenGlue.LOG.info("[mcss] dev screenshots done");
 				mc.stop();

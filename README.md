@@ -12,7 +12,7 @@ assignment. Controlify handles the controller input itself.
 **[⬇ Download the latest AppImage](https://github.com/dwatson251/minecraft-splitscreen/releases/latest/download/MinecraftSplitscreen-x86_64.AppImage)**
 (x86_64; older versions and release notes are on the [releases page](https://github.com/dwatson251/minecraft-splitscreen/releases))
 
-![Choosing a profile: New profile first, Player 1's Microsoft account, then saved profiles; Bob is in use by another player](docs/screenshots/profiles.png)
+![Choosing a profile: New profile first, Player 1's Microsoft account, then the saved profiles](docs/screenshots/profiles.png)
 
 ## Requirements
 - Steam Deck (SteamOS 3.8+), or any Linux desktop with KWin 6.
@@ -36,17 +36,21 @@ AppImage takes effect by itself (`--setup` only does that step and exits).
 ## Profiles
 Every view starts by asking **Choose your profile**: Player 1 before the main menu, the others before they join.
 - **Create profile** is always the first card. Pick a skin (Minecraft's 9 built-in skins, or your own), choose
-  classic or slim arms, type a name on the on-screen keyboard, then Create.
+  classic or slim arms, type a name on the on-screen keyboard (X deletes a letter), then Create.
 - **Custom skins:** put 64×64 skin PNGs in `~/Documents/Minecraft Skins`. They show up the next time you launch.
 - **Player 1** can also play as the **Microsoft account**, with its real skin. Online servers need that.
 - **In use:** a profile someone else is using is greyed out.
-- **Edit profile** changes a profile's skin or deletes it. Names can't change, because each world keeps a
-  profile's inventory under its name. Inventories are per world, as in normal Minecraft.
+- **Edit profile** changes a profile's name or skin, or deletes it. Inventories are per world, as in normal
+  Minecraft. A renamed profile keeps them, because its player data in every world moves to the new name.
 - Player 1 can switch profile from **Splitscreen → Profile** on the title screen.
 
-| Creating a profile | The profile in game |
-| --- | --- |
-| ![Skin picker with a big preview, classic/slim arms, and the on-screen keyboard](docs/screenshots/create-profile.png) | ![Player 1 playing as the profile "Alice", seen from the front](docs/screenshots/in-game.png) |
+| Creating a profile | Editing a profile | The profile in game |
+| --- | --- | --- |
+| ![Skin picker with a big preview, classic/slim arms, and the on-screen keyboard](docs/screenshots/create-profile.png) | ![Edit profile: skin picker, name, Save, Delete and Back](docs/screenshots/edit-profile.png) | ![Player 1 playing as the profile "Alice", seen from the front](docs/screenshots/in-game.png) |
+
+**Typing elsewhere** (a world's name, a server address): press A on the text box for Controlify's on-screen
+keyboard (X is Backspace). With Steam's keyboard (Steam + X), Space, Enter and the arrow keys work while a text
+box is selected.
 
 ## Players and controllers
 P1 starts alone:
@@ -82,13 +86,18 @@ Every layout, captured on a Steam Deck (each view at its real size; the profiles
 | **3 players** | ![3 players, Player 1 across the top](docs/screenshots/split-3p-horizontal.png) | ![3 players, Player 1 down the left](docs/screenshots/split-3p-vertical.png) |
 | **4 players** | ![4 players in quadrants](docs/screenshots/split-4p.png) | (always quadrants) |
 
-| A guest waiting for the world | Splitscreen settings | Player 1's pause menu |
-| --- | --- | --- |
-| ![Player 2 (profile Kai) waiting for Player 1's world](docs/screenshots/waiting.png) | ![Splitscreen settings: layout, players, profile](docs/screenshots/settings.png) | ![Pause menu with the Splitscreen button at the top left](docs/screenshots/pause-menu.png) |
+| Player 2 has just pressed START | A guest waiting for the world |
+| --- | --- |
+| ![The screen split at once: Player 1 playing on top, "Player 2 is joining" below](docs/screenshots/joining.png) | ![Player 2 (profile Kai) waiting for Player 1's world, with Back](docs/screenshots/waiting.png) |
+
+| Splitscreen settings | Player 1's pause menu |
+| --- | --- |
+| ![Splitscreen settings: layout, players, profile, updates, and the installed version](docs/screenshots/settings.png) | ![Pause menu with the Splitscreen button at the top left](docs/screenshots/pause-menu.png) |
 
 The menu screenshots come from one desktop window (`MCSS_DEV_SHOTS=<folder> ./gradlew runClient` in `glue-mod/`,
 see `DevShots.java`). On the Deck the same screens fill each player's part of the split screen. The layout
-pictures come from the real AppImage on a Deck (`scripts/deck-split.py`, see `DevSplit.java`).
+pictures come from the real AppImage on a Deck (`scripts/deck-split.py`, see `DevSplit.java`). The "is joining"
+tile is `appimage/loading.qml`, drawn off-screen by the Deck's `qml6`, under the in-game shot.
 
 Under Steam the clients read the real controllers, not Steam Input's virtual pads. Steam's virtual pads all look
 the same to the game, so they can't be told apart.
@@ -119,6 +128,8 @@ title screen shows the installed and the new version, with **Update and Restart*
   - **The download or check fails:** the backup is put back, the error is shown, and you carry on with the
     version you had.
   - **The new version fails to start:** the backup is put back, the old version starts again, and it says why.
+![The update offer: installed and new version, Update and Restart or Continue without update](docs/screenshots/update.png)
+
 - **To turn it off:** set **Updates: Off** in Player 1's **Splitscreen** settings, or start with `--no-update`
   (Steam → Properties → Launch Options). Without a connection it just starts.
 - The installed version is shown at the bottom of Player 1's **Splitscreen** settings.

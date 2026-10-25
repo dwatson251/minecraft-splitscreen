@@ -10,7 +10,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT=$ROOT/build/smoke
 DEV=$ROOT/.tools/dev
 RUN=$DEV/instances/P1/minecraft
-SHOTS=(profiles create-profile settings waiting quit-confirm in-game pause-menu)
+SHOTS=(profiles create-profile settings waiting quit-confirm edit-profile update in-game pause-menu)
 NEEDED=("[mcss] P1 plays as profile Alice" "[mcss] Quit Game now asks first" "[mcss] published '"
 	"[mcss] dev screenshots done")
 FAILURES="Mixin apply failed|Unreported exception|Crash report|controller handling failed|Exception in thread \"Render thread\""

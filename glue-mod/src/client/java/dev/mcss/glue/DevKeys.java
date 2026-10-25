@@ -58,16 +58,11 @@ final class DevKeys {
 					next();
 					return;
 				}
-				screen.setFocused(box);
-				// what Controlify does for A on a focused text box (ScreenProcessor.tryOpenKeyboard)
-				var behaviour = ComponentProcessorProvider.provide(box).getKeyboardBehaviour(null, null);
-				if (!(behaviour instanceof ComponentKeyboardBehaviour.Handled h)) {
-					SplitscreenGlue.LOG.info("[mcss] devkeys {}: keyboard behaviour {}", name(), behaviour);
+				target = openKeyboard(mc, screen, box);
+				if (target == null) {
 					next();
 					return;
 				}
-				target = h.inputTarget();
-				mc.gui.setScreen(new KeyboardOverlayScreen(screen, h.layout(), target, h.positioner()));
 				log(mc, "keyboard open");
 			}
 			case 2 -> {
@@ -96,6 +91,21 @@ final class DevKeys {
 		}
 	}
 
+	/**
+	 * Opens Controlify's on-screen keyboard on a screen's text box, as pressing A on it does
+	 * (ScreenProcessor.tryOpenKeyboard); returns what it types into, or null. DevShots uses it too.
+	 */
+	static InputTarget openKeyboard(Minecraft mc, Screen screen, EditBox box) {
+		screen.setFocused(box);
+		var behaviour = ComponentProcessorProvider.provide(box).getKeyboardBehaviour(null, null);
+		if (!(behaviour instanceof ComponentKeyboardBehaviour.Handled h)) {
+			SplitscreenGlue.LOG.info("[mcss] devkeys {}: keyboard behaviour {}", screen.getClass().getSimpleName(), behaviour);
+			return null;
+		}
+		mc.gui.setScreen(new KeyboardOverlayScreen(screen, h.layout(), h.inputTarget(), h.positioner()));
+		return h.inputTarget();
+	}
+
 	private static String name() {
 		return screen == null ? "#" + index : screen.getClass().getSimpleName();
 	}
@@ -114,7 +124,7 @@ final class DevKeys {
 		target = null;
 	}
 
-	private static EditBox find(GuiEventListener l) {
+	static EditBox find(GuiEventListener l) {
 		if (l instanceof EditBox e) return e;
 		if (l instanceof ContainerEventHandler c) {
 			for (GuiEventListener child : c.children()) {

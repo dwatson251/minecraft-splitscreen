@@ -24,9 +24,13 @@ public class EditProfileScreen extends SkinScreen {
 
 	@Override
 	protected void init() {
-		int w = 120, y0 = Math.max(4, (height - 224) / 2), x0 = (width - w) / 2;
-		int y = addPicker(x0, y0 + 14, w);
-		y += 12;
+		// two columns, like New profile: the skin picker on the left, the name and buttons on the right (one column
+		// ran off the bottom of a split-screen view)
+		int left = 100, gap = 12, w = 140;
+		int x0 = (width - (left + gap + w)) / 2, y0 = Math.max(4, (height - 170) / 2);
+		addPicker(x0, y0 + 14, left);
+		x0 += left + gap;
+		int y = y0 + 26;
 		String typed = name == null ? profile.name() : name.getValue();
 		name = addRenderableWidget(new EditBox(font, x0, y, w, 18, Component.literal("Name")));
 		name.setMaxLength(16);
@@ -65,9 +69,9 @@ public class EditProfileScreen extends SkinScreen {
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
 		super.extractRenderState(g, mouseX, mouseY, partialTick);
-		g.text(font, title.getString(), (width - font.width(title)) / 2, Math.max(4, (height - 224) / 2), 0xFFFFFFFF);
+		g.text(font, title.getString(), (width - font.width(title)) / 2, Math.max(4, (height - 170) / 2), 0xFFFFFFFF);
 		String above = problem.isEmpty() ? "Name" : problem;
-		g.text(font, above, (width - font.width(above)) / 2, name.getY() - 10, problem.isEmpty() ? 0xFFA0A0A0 : 0xFFFF8080);
+		g.text(font, above, name.getX(), name.getY() - 10, problem.isEmpty() ? 0xFFA0A0A0 : 0xFFFF8080);
 	}
 
 	@Override
