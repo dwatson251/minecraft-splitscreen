@@ -195,3 +195,13 @@
     the cause isn't confirmed. fetch-mods took the newest upload, betas included ("latest release" in its comment),
     which put Sodium 0.9.3-beta.1 in; it now prefers releases (Sodium 0.9.2), the version Controlify 3.5.x was
     released against.
+  - Backspace (and Enter, Tab, arrows) on Controlify's keyboard did nothing: Controlify sends KeyEvent(scancode,
+    0, mods), the pre-26.3 shape, but 26.3's KeyEvent takes the SDL keycode second and EditBox switches on it.
+    KeyboardKeyCodeMixin fills in the keycode. DevKeys now also checks Backspace and Left.
+  - Sodium: the real cause. Controlify 3.5.3 ships controlify-compat.sodium.mixins.json but doesn't list it in its
+    fabric.mod.json, so its Sodium support never loaded and the pad only reached the search box and page buttons.
+    We list it in ours. Two more fixes were needed (FocusFix): Controlify focuses the first option directly on
+    the screen (not through the list), so arrow navigation restarted from Render Distance every time; and Sodium's
+    list doesn't scroll to the focused option. DevSodium (MCSS_DEV_SODIUM) checks it: 20 steps down reach Entity
+    Shadows with the list scrolled, and a slider step changes Render Distance. Sodium's widgets only take focus
+    after arrow or Tab input (Controlify reports its navigation as KEYBOARD_ARROW), so the test sets that.

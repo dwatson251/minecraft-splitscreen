@@ -20,8 +20,8 @@ import net.minecraft.network.chat.Component;
 
 /**
  * Development only: with MCSS_DEV_KEYS set, Player 1 opens screens with text boxes, opens Controlify's on-screen
- * keyboard on each box the way pressing A does, types with it, closes it, and logs ("[mcss] devkeys") whether the
- * box kept focus and the text. Then it quits. No controller needed: Controlify's keyboard doesn't use one to open.
+ * keyboard on each box the way pressing A does, types with it (letters, Backspace, Left), closes it, and logs
+ * ("[mcss] devkeys") whether the box kept focus and the text. Then it quits. No controller needed: Controlify's keyboard doesn't use one to open.
  */
 final class DevKeys {
 	static final boolean ACTIVE = System.getenv("MCSS_DEV_KEYS") != null;
@@ -74,6 +74,12 @@ final class DevKeys {
 				log(mc, "before typing");
 				for (char c : TYPED.toCharArray()) target.acceptChar(c, 0);
 				log(mc, "typed");
+				// Backspace and Left as Controlify's keyboard sends them (KeyWidget: scancode, 0, 0)
+				target.acceptKeyCode(42, 0, 0);
+				log(mc, "after Backspace");
+				target.acceptKeyCode(80, 0, 0);
+				target.acceptChar('X', 0);
+				log(mc, "after Left, X");
 			}
 			case 3 -> {
 				log(mc, "a second later");
