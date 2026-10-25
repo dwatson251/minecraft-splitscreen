@@ -210,3 +210,8 @@
   P1 does, and closes its view when its player leaves by themselves. Refused or kicked: the waiting screen shows the
   reason ("needs online-mode=false") and no retry until P1 is on another server. Tested locally with one dev
   guest (Bob) against dnlwtsn.co.uk:25565 (online-mode=false): joined, followed P1 out, refused by a bad host.
+- Instant split on join: AppRun opens a loading window (appimage/loading.qml under the Deck's qml6, else zenity)
+  as soon as a guest is launched, titled "P<shown> Loading" (shown = its line in slots), so the tiler splits the
+  screen at once. The tiler closes it when that player's game window (same P<n>) appears; AppRun closes it when the
+  player leaves before then, after 90 s as a fallback, and on teardown. qml6 loads it on the Deck (checked
+  off-screen).

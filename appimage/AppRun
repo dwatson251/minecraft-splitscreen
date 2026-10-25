@@ -90,10 +90,12 @@ if [ ! -S "$XDG_RUNTIME_DIR/$SOCKET" ] || [ -z "$KWIN" ]; then
 fi
 log "nested KWin pid $KWIN on $SOCKET (${W}x${H}, ${BACKEND[0]})"
 
+declare -A LOADING=()   # player -> its loading window's pid (loading_open, below)
 teardown() {
 	trap - EXIT INT TERM HUP
 	log "stopping"
 	prism_running && flatpak kill "$PRISM_APP"
+	for n in "${!LOADING[@]}"; do loading_close "$n"; done
 	# a leftover KWin keeps the window open, and Steam would think the game is still running
 	kill "$KWIN" 2>/dev/null
 	wait "$SESSION" 2>/dev/null
@@ -127,6 +129,31 @@ mc_pid() {  # the Java process of instance P$1, if running
 	done
 }
 
+# a joining player's tile while their Minecraft starts (loading.qml, else zenity): titled like their game window,
+# "P<n> Loading", so the tiler splits the screen at once and swaps in the game window when it appears
+loading_open() {  # instance, shown number
+	loading_close "$1"
+	local run=(env -u DISPLAY -u LD_PRELOAD WAYLAND_DISPLAY="$SOCKET" QT_QPA_PLATFORM=wayland GDK_BACKEND=wayland
+		QT_WAYLAND_DISABLE_WINDOWDECORATION=1)
+	if command -v qml6 >/dev/null; then
+		"${run[@]}" qml6 "$HERE/loading.qml" -- "$2" >> "$STATE/loading.log" 2>&1 &
+	elif command -v zenity >/dev/null; then
+		"${run[@]}" zenity --progress --pulsate --no-cancel --title="P$2 Loading" \
+			--text="Player $2 is joining: starting Minecraft..." >> "$STATE/loading.log" 2>&1 &
+	else
+		return
+	fi
+	LOADING[$1]=$!
+}
+loading_close() {
+	local pid=${LOADING[$1]:-}
+	[ -n "$pid" ] && kill "$pid" 2>/dev/null
+	unset "LOADING[$1]"
+}
+shown_number() {  # a joined player's place in the slots file (Player 1 first), as the glue numbers it
+	grep -n "^$1 " "$CONTROL/slots" 2>/dev/null | cut -d: -f1 | head -1
+}
+
 prism -l P1 -a "$MSA"
 for _ in $(seq 120); do [ -n "$(mc_pid 1)" ] && break; sleep 1; done
 [ -n "$(mc_pid 1)" ] || { log "P1 did not start, see $STATE/prism.log"; exit 1; }
@@ -147,12 +174,16 @@ while kill -0 "$KWIN" 2>/dev/null && [ -n "$(mc_pid 1)" ]; do
 		gen=${WANT[$n]:-}
 		if [ -n "$gen" ] && [ -n "$pid" ]; then
 			SEEN[$n]=$gen
+			# the tiler closes the loading window when the game's shows up; this is the fallback
+			[ -n "${LOADING[$n]:-}" ] && [ $((now - ${ASKED_AT[$n]:-0})) -gt 90 ] && loading_close "$n"
 		elif [ -n "$gen" ] && [ "${SEEN[$n]:-}" != "$gen" ]; then
 			# a new join: one launch at a time (several clients loading at once starve the Deck's 4 cores), and
 			# retry if the window hasn't come up after two minutes
 			if [ "${ASKED[$n]:-}" != "$gen" ] || [ $((now - ${ASKED_AT[$n]:-0})) -gt 120 ]; then
 				if [ $((now - LAST_LAUNCH)) -ge "${MCSS_STAGGER:-8}" ]; then
 					log "starting P$n (joined $gen)"
+					shown=$(shown_number "$n")
+					loading_open "$n" "${shown:-$n}"
 					prism -l "P$n" -a "Player$n"
 					ASKED[$n]=$gen; ASKED_AT[$n]=$now; LAST_LAUNCH=$now
 				fi
@@ -161,6 +192,8 @@ while kill -0 "$KWIN" 2>/dev/null && [ -n "$(mc_pid 1)" ]; do
 			log "stopping P$n (no longer joined), java pid $pid"
 			kill "$pid"
 		fi
+		# left before their game came up, or it never did
+		[ -z "$gen" ] && [ -n "${LOADING[$n]:-}" ] && loading_close "$n"
 	done
 	unset WANT
 	sleep 2

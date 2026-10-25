@@ -3,12 +3,18 @@
 // Horizontal: 2 = top/bottom, 3 = P1 across the top with P2/P3 below. Vertical: 2 = side by side, 3 = P1 down the
 // left with P2/P3 stacked on the right. 1 = fullscreen, 4 = quadrants either way.
 // Anything else (Prism Launcher progress or error dialogs) is kept above the game and centred.
+// A joining player's loading window ("P<n> Loading", AppRun) holds their tile until their game window appears; then
+// it's closed.
 // Keyboard focus always stays on Player 1's view: in Desktop Mode Steam also sends the Deck's D-pad as arrow keys,
 // which must not move another player's menus. Guests read their pads directly and don't need focus.
 
 function playerIndex(w) {
     var m = /^P(\d+)v? /.exec(w.caption);
     return m ? parseInt(m[1], 10) : -1;
+}
+
+function isLoading(w) {
+    return /^P\d+ Loading$/.test(w.caption);
 }
 
 function vertical(wins) {
@@ -48,6 +54,16 @@ function tile() {
                            width: Math.min(g.width, area.width), height: Math.min(g.height, area.height)};
     });
     var wins = all.filter(function (w) { return playerIndex(w) >= 0; });
+    // a game window has replaced a loading one: close the loading window and leave it out
+    var games = {};
+    wins.forEach(function (w) { if (!isLoading(w)) games[playerIndex(w)] = true; });
+    wins = wins.filter(function (w) {
+        if (isLoading(w) && games[playerIndex(w)]) {
+            w.closeWindow();
+            return false;
+        }
+        return true;
+    });
     wins.sort(function (a, b) { return playerIndex(a) - playerIndex(b); });
     var s = slots(wins.length, area, vertical(wins));
     for (var i = 0; i < wins.length && i < s.length; i++) {
