@@ -108,6 +108,15 @@ test any version, including snapshots.
 
 The same smoke test runs on every push and pull request, and a release is only published if it passes.
 
+## Updates
+At every launch, while "Minecraft is loading…" shows, the AppImage checks GitHub for a newer release (by semantic
+version). If there is one, it downloads it (the progress shows on the loading screen), checks its SHA-256, replaces
+itself in place and restarts, so the Steam shortcut keeps working. Without a connection it just starts.
+- Turn it off in Player 1's **Splitscreen** settings (**Updates: Off**), or start it with `--no-update` (Steam →
+  Properties → Launch Options).
+- The version you had is kept next to it as `MinecraftSplitscreen-x86_64.AppImage.previous`. To go back, rename it
+  (and turn updates off).
+
 ## Logs
 `~/.local/state/mc-splitscreen/` holds `apprun.log`, `kwin.log` and `prism.log`. Each client's game log is in
 Prism's `instances/P<n>/minecraft/logs/latest.log`.

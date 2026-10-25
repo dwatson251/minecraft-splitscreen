@@ -1,11 +1,15 @@
 package dev.mcss.glue;
 
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** "Splitscreen settings", Player 1 only: screen layout, the players list, and Player 1's profile (title screen). */
+/**
+ * "Splitscreen settings", Player 1 only: screen layout, the players list, Player 1's profile (title screen), and
+ * whether the AppImage updates itself at launch. The installed version is shown at the bottom.
+ */
 public class SettingsScreen extends DebouncedScreen {
 	private final Screen parent;
 
@@ -31,9 +35,21 @@ public class SettingsScreen extends DebouncedScreen {
 		Button profile = addRenderableWidget(Button.builder(Component.literal("Profile: " + (p == null ? "none" : Profiles.displayName(p))),
 				b -> minecraft.gui.setScreen(new ProfileSelectScreen(this))).bounds(width / 2 - 100, y + 72, 200, 20).build());
 		profile.active = minecraft.level == null;  // the name can only change outside a world
+		addRenderableWidget(Button.builder(updatesLabel(), b -> {
+			SplitSettings.setUpdates(!SplitSettings.updates());
+			b.setMessage(updatesLabel());
+		}).bounds(width / 2 - 100, y + 96, 200, 20).build());
 		addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
-				.bounds(width / 2 - 100, y + 104, 200, 20).build());
+				.bounds(width / 2 - 100, y + 128, 200, 20).build());
+		Component version = Component.literal("Minecraft Splitscreen " + FabricLoader.getInstance()
+				.getModContainer("splitscreen-glue").map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("?"));
+		int vw = font.width(version);
+		addRenderableWidget(new StringWidget((width - vw) / 2, y + 154, vw, 12, version, font));
 		setInitialFocus(layout);
+	}
+
+	private static Component updatesLabel() {
+		return Component.literal("Updates: " + (SplitSettings.updates() ? "Automatic" : "Off"));
 	}
 
 	private static Component layoutLabel() {

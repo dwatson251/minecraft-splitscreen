@@ -217,3 +217,11 @@
   off-screen).
 - Player 1 gets the loading tile too ("Minecraft is loading…") from launch until its game window appears
   (fallback close after 180 s). README: instant split, server follow. v0.7.0.
+- Self-update (v0.8.0): appimage/mcss-update.py (stdlib) asks GitHub's releases/latest, compares semver with the
+  AppImage's VERSION (written by build-appimage from gradle.properties; the release workflow fails a tag that
+  doesn't match), downloads the versioned asset with its SHA-256 digest from the API, checks size/digest/ELF, and
+  os.replace()s $APPIMAGE. AppRun runs it under Player 1's loading tile (live status via a status file the QML
+  polls; QML_XHR_ALLOW_FILE_READ=1), keeps .previous, stop_session(), then exec's the new AppImage (same PID for
+  Steam) with MCSS_UPDATED set so it doesn't check again. Off: Splitscreen settings "Updates: Off" (updates=off,
+  grepped by AppRun), --no-update, MCSS_NO_UPDATE=1. Unit-tested against a fake API: newer/equal/older/pre-release,
+  offline (gives up in 4 s), bad digest (rejected, file untouched), progress.

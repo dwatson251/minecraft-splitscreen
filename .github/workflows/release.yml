@@ -66,6 +66,12 @@ jobs:
 
       - name: Build AppImage
         run: |
+          # the AppImage's VERSION is what its self-update compares with the latest release's tag
+          VERSION=$(sed -n 's/^version=//p' glue-mod/gradle.properties)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "::error::tag $GITHUB_REF_NAME doesn't match version=$VERSION in glue-mod/gradle.properties"
+            exit 1
+          fi
           NAME=MinecraftSplitscreen-${GITHUB_REF_NAME//\//-}-x86_64.AppImage
           [[ "$GITHUB_REF" == refs/tags/* ]] || NAME=MinecraftSplitscreen-${GITHUB_SHA::7}-x86_64.AppImage
           OUT=$PWD/dist/$NAME scripts/build-appimage.sh

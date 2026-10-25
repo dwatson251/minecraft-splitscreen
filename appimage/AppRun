@@ -3,6 +3,7 @@
 # tiles 1-4 Minecraft clients, one per controller.
 #   MinecraftSplitscreen.AppImage            start
 #   MinecraftSplitscreen.AppImage --setup    (re)create the Prism instances and offline accounts, then exit
+#   MinecraftSplitscreen.AppImage --no-update   start without checking GitHub for a newer version
 # P1 starts alone with "Press START to play": every controller that presses START becomes the next player (first
 # = P1), also later in game, and this script starts that player's view (P2-P4). A guest that quits frees its
 # place. P1 opens any world, which is shared on LAN; the others join it automatically.
@@ -91,15 +92,18 @@ fi
 log "nested KWin pid $KWIN on $SOCKET (${W}x${H}, ${BACKEND[0]})"
 
 declare -A LOADING=()   # player -> its loading window's pid (loading_open, below)
-teardown() {
+stop_session() {
 	trap - EXIT INT TERM HUP
-	log "stopping"
 	prism_running && flatpak kill "$PRISM_APP"
 	for n in "${!LOADING[@]}"; do loading_close "$n"; done
 	# a leftover KWin keeps the window open, and Steam would think the game is still running
 	kill "$KWIN" 2>/dev/null
 	wait "$SESSION" 2>/dev/null
 	kill -0 "$KWIN" 2>/dev/null && { sleep 2; kill -KILL "$KWIN" 2>/dev/null; }
+}
+teardown() {
+	log "stopping"
+	stop_session
 	exit 0
 }
 trap teardown EXIT INT TERM HUP
@@ -132,12 +136,12 @@ mc_pid() {  # the Java process of instance P$1, if running
 # a player's tile while their Minecraft starts, Player 1's at launch and a guest's when they join (loading.qml, else
 # zenity): titled like their game window, "P<n> Loading", so the tiler gives it that player's place at once and
 # swaps in the game window when it appears
-loading_open() {  # instance, shown number
+loading_open() {  # instance, shown number, [status file shown live below the title]
 	loading_close "$1"
 	local run=(env -u DISPLAY -u LD_PRELOAD WAYLAND_DISPLAY="$SOCKET" QT_QPA_PLATFORM=wayland GDK_BACKEND=wayland
-		QT_WAYLAND_DISABLE_WINDOWDECORATION=1)
+		QT_WAYLAND_DISABLE_WINDOWDECORATION=1 QML_XHR_ALLOW_FILE_READ=1)
 	if command -v qml6 >/dev/null; then
-		"${run[@]}" qml6 "$HERE/loading.qml" -- "$2" >> "$STATE/loading.log" 2>&1 &
+		"${run[@]}" qml6 "$HERE/loading.qml" -- "$2" ${3:+"$3"} >> "$STATE/loading.log" 2>&1 &
 	elif command -v zenity >/dev/null; then
 		local text="Player $2 is joining: starting Minecraft..."
 		[ "$2" = 1 ] && text="Minecraft is loading..."
@@ -157,7 +161,45 @@ shown_number() {  # a joined player's place in the slots file (Player 1 first), 
 	grep -n "^$1 " "$CONTROL/slots" 2>/dev/null | cut -d: -f1 | head -1
 }
 
-loading_open 1 1
+# --- self-update: the newest GitHub release (mcss-update.py), checked while Player 1's loading tile shows, before
+# anything else starts. A newer one replaces this AppImage file in place (the Steam shortcut keeps pointing at it),
+# and this script then becomes the new one (exec: same process, so Steam still sees one running game). Off with
+# MCSS_NO_UPDATE=1, --no-update, or "Updates: Off" in Player 1's Splitscreen settings; skipped for a dev run (no
+# $APPIMAGE) or a folder it can't write to. The previous version is kept as <AppImage>.previous.
+STATUS=$STATE/loading-status
+update_wanted() {
+	[ -n "${APPIMAGE:-}" ] && [ -w "$(dirname "$APPIMAGE")" ] || return 1
+	[ "${MCSS_NO_UPDATE:-}" != 1 ] && [ -z "${MCSS_UPDATED:-}" ] || return 1   # MCSS_UPDATED: just updated
+	local a
+	for a in "$@"; do [ "$a" = --no-update ] && return 1; done
+	! grep -qx 'updates=off' "$PRISM/instances/P1/minecraft/config/splitscreen.properties" 2>/dev/null
+}
+self_update() {
+	local current tag url size sha
+	current=$(cat "$HERE/VERSION" 2>/dev/null) || return
+	echo "Checking for updates..." > "$STATUS"
+	read -r tag url size sha < <(python3 "$HERE/mcss-update.py" check "$current") || { log "up to date ($current)"; return; }
+	log "update: $current -> $tag"
+	echo "Updating to $tag..." > "$STATUS"
+	cp -f "$APPIMAGE" "$APPIMAGE.previous" 2>/dev/null
+	if ! MCSS_UPDATE_LABEL="Updating to $tag..." python3 "$HERE/mcss-update.py" download "$url" "$size" "$sha" "$APPIMAGE" \
+		"$STATUS"; then
+		log "update to $tag failed, starting $current"
+		return
+	fi
+	log "updated to $tag, restarting"
+	echo "Restarting..." > "$STATUS"
+	sleep 1
+	stop_session
+	rm -f "$STATUS"
+	export MCSS_UPDATED=$tag
+	exec "$APPIMAGE" "$@"
+}
+
+rm -f "$STATUS"
+loading_open 1 1 "$STATUS"
+update_wanted "$@" && self_update "$@"
+rm -f "$STATUS"   # back to "Minecraft is loading…"
 P1_STARTED=$(date +%s)
 prism -l P1 -a "$MSA"
 for _ in $(seq 120); do [ -n "$(mc_pid 1)" ] && break; sleep 1; done

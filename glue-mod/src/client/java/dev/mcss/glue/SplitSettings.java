@@ -10,11 +10,14 @@ import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * Player 1's splitscreen settings, kept in the host instance's config folder so they last between sessions. The
- * layout reaches the KWin tiler through Player 1's window title ("P1v ..." = vertical).
+ * layout reaches the KWin tiler through Player 1's window title ("P1v ..." = vertical); "updates=off" is read by
+ * AppRun, which skips its self-update at launch.
  */
 final class SplitSettings {
 	private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("splitscreen.properties");
-	private static boolean vertical = load();
+	private static final Properties PROPS = load();
+	private static boolean vertical = "vertical".equals(PROPS.getProperty("layout"));
+	private static boolean updates = !"off".equals(PROPS.getProperty("updates"));
 
 	private SplitSettings() {}
 
@@ -25,22 +28,38 @@ final class SplitSettings {
 
 	static void setVertical(boolean v) {
 		vertical = v;
+		save();
+	}
+
+	/** Check GitHub for a newer version at launch (AppRun) and update by itself. */
+	static boolean updates() {
+		return updates;
+	}
+
+	static void setUpdates(boolean on) {
+		updates = on;
+		save();
+	}
+
+	private static void save() {
+		// one key per line, no comment: AppRun greps for "updates=off"
 		Properties p = new Properties();
-		p.setProperty("layout", v ? "vertical" : "horizontal");
+		p.setProperty("layout", vertical ? "vertical" : "horizontal");
+		p.setProperty("updates", updates ? "on" : "off");
 		try (Writer w = Files.newBufferedWriter(FILE)) {
-			p.store(w, "Splitscreen settings (Player 1)");
+			for (String key : p.stringPropertyNames()) w.write(key + "=" + p.getProperty(key) + "\n");
 		} catch (IOException e) {
 			SplitscreenGlue.LOG.warn("[mcss] can't save {}: {}", FILE, e.toString());
 		}
 	}
 
-	private static boolean load() {
+	private static Properties load() {
 		Properties p = new Properties();
 		try (Reader r = Files.newBufferedReader(FILE)) {
 			p.load(r);
 		} catch (IOException e) {
-			return false;
+			// no settings yet: defaults
 		}
-		return "vertical".equals(p.getProperty("layout"));
+		return p;
 	}
 }

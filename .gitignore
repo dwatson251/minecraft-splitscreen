@@ -7,3 +7,4 @@ run/
 build.log
 runclient.log
 smoke-run.log
+__pycache__/
