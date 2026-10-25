@@ -61,7 +61,7 @@ jobs:
 
       - name: Tools for the smoke test
         if: steps.check.outputs.is_new == 'true'
-        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri mesa-utils && pip install pillow
+        run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri libglx-mesa0 mesa-vulkan-drivers libvulkan1 && pip install pillow
 
       - name: Pin the new version
         if: steps.check.outputs.is_new == 'true'

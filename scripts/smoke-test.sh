@@ -31,8 +31,25 @@ JDK=$(ls -d "$ROOT"/.tools/jdk-25* 2>/dev/null | head -1 || true)
 export JAVA_HOME=${JDK:-${JAVA_HOME:-}}
 export MCSS_PLAYER=1 MCSS_DEV_SHOTS=$OUT/shots
 RUNNER=()
-[ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && RUNNER=(xvfb-run -a -s "-screen 0 1280x720x24")
-"${RUNNER[@]}" timeout 1200 "$ROOT/glue-mod/gradlew" --console=plain -p "$ROOT/glue-mod" runClient > "$OUT/client.log" 2>&1
+if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+	# a virtual display with GLX (Mesa's software OpenGL), so the game can open its window without a GPU
+	RUNNER=(xvfb-run -a -s "-screen 0 1280x720x24 +extension GLX +render -noreset")
+	export LIBGL_ALWAYS_SOFTWARE=1
+fi
+# its own process group, so a stuck run can be stopped as a whole (by that exact group id)
+setsid "${RUNNER[@]}" timeout 1200 "$ROOT/glue-mod/gradlew" --console=plain -p "$ROOT/glue-mod" runClient \
+	> "$OUT/client.log" 2>&1 < /dev/null &
+GAME=$!
+# no point waiting out the timeout when the game can't open a window at all
+while kill -0 "$GAME" 2>/dev/null; do
+	if grep -q "Failed to create backend Vulkan" "$OUT/client.log" && ! grep -q "Using graphics backend" "$OUT/client.log"; then
+		echo "no graphics backend, stopping the client" >> "$OUT/client.log"
+		kill -- "-$GAME" 2>/dev/null
+		break
+	fi
+	sleep 5
+done
+wait "$GAME"
 CODE=$?
 
 problems=()
