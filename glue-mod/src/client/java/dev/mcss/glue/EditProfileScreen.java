@@ -66,8 +66,7 @@ public class EditProfileScreen extends SkinScreen {
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
 		super.extractRenderState(g, mouseX, mouseY, partialTick);
 		g.text(font, title.getString(), (width - font.width(title)) / 2, Math.max(4, (height - 224) / 2), 0xFFFFFFFF);
-		String above = problem.isEmpty() ? "Name (A to change)" : problem;
-		g.text(font, above, (width - font.width(above)) / 2, name.getY() - 10, problem.isEmpty() ? 0xFFA0A0A0 : 0xFFFF8080);
+		if (!problem.isEmpty()) g.text(font, problem, (width - font.width(problem)) / 2, name.getY() - 10, 0xFFFF8080);
 	}
 
 	@Override
