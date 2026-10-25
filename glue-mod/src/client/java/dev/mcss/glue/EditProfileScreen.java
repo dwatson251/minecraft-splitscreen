@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 
 /**
  * Change a profile's name or skin, or delete it. A rename moves the profile's inventories in Player 1's worlds along
- * with it (Profiles.rename). A on the name opens the on-screen keyboard (TypeScreen).
+ * with it (Profiles.rename). A on the name opens Controlify's on-screen keyboard.
  */
 public class EditProfileScreen extends SkinScreen {
 	private final ProfileSelectScreen parent;

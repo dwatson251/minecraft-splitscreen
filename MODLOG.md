@@ -182,3 +182,16 @@
   - Guests: the waiting screen's Cancel (closed the view) is now Back to profile selection (Profiles.deactivate
     frees the lock; auto-join only runs on WaitingScreen). The guest's profile screen gets Leave instead of a
     greyed Back, so a guest can still close its view.
+- Keyboards, round two:
+  - Controlify's own keyboard ("Press A to open keyboard") never typed: Minecraft 26.3's Gui.setScreen clears the
+    old screen's focus, and Controlify's keyboard is a screen over the one with the text box, so the box lost
+    focus and EditBox.charTyped ignored every key. KeyboardOverlayFocusMixin gives the focus back. DevKeys
+    (MCSS_DEV_KEYS, one local dev client) checks Direct Connect, Add Server and Create World with Controlify's
+    real keyboard, no controller needed: before the fix the value stayed empty, after it the text is typed and
+    kept.
+  - That made our TypeScreen (and its takeover of A) redundant: removed. Our keyboard is left on New profile only.
+  - Steam's keyboard: Enter, Space, arrows and page keys pass while a text box has focus (Escape never does).
+  - Sodium's video settings can't be driven by the pad. Controlify's Sodium compat matches Sodium 0.9.3's API, so
+    the cause isn't confirmed. fetch-mods took the newest upload, betas included ("latest release" in its comment),
+    which put Sodium 0.9.3-beta.1 in; it now prefers releases (Sodium 0.9.2), the version Controlify 3.5.x was
+    released against.

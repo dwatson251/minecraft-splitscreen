@@ -15,7 +15,9 @@ for slug in fabric-api controlify yacl sodium; do
 		python3 -c 'import json,sys
 v=json.load(sys.stdin)
 if not v: sys.exit("no %s build for this version" % sys.argv[1])
-f=[x for x in v[0]["files"] if x["primary"]][0]
+# a stable release when there is one (betas have broken controller support before), else the newest build
+pick=next((x for x in v if x["version_type"]=="release"), v[0])
+f=[x for x in pick["files"] if x["primary"]][0]
 print(f["url"], f["hashes"]["sha1"], f["filename"])' "$slug")
 	curl -fsSL -o "$OUT/$file" "$url"
 	echo "$sha  $OUT/$file" | sha1sum -c --quiet
