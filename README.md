@@ -121,6 +121,7 @@ title screen shows the installed and the new version, with **Update and Restart*
   - **The new version fails to start:** the backup is put back, the old version starts again, and it says why.
 - **To turn it off:** set **Updates: Off** in Player 1's **Splitscreen** settings, or start with `--no-update`
   (Steam → Properties → Launch Options). Without a connection it just starts.
+- The installed version is shown at the bottom of Player 1's **Splitscreen** settings.
 
 ## Logs
 `~/.local/state/mc-splitscreen/` holds `apprun.log`, `kwin.log` and `prism.log`. Each client's game log is in

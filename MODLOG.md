@@ -239,3 +239,4 @@
   - Tested: the UpdateScreen states via DevUpdate (MCSS_DEV_UPDATE, screenshots), and AppRun's update_now in a
     harness against a fake release (good, bad digest, nothing to install). The restart and rollback across real
     AppImages wasn't tested: the user can't test before the tag, so any fixes ship as patches.
+- v0.8.1: a version bump (and a README line) to test the self-update from v0.8.0 on the Deck.
