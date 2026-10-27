@@ -267,3 +267,10 @@
   the world's singleplayer_uuid in level.dat makes PlayerList.loadPlayerData load the last host's file for whoever
   hosts. PlayerListMixin returns null for it, so the host loads its own UUID's data like the guests. Compiles;
   not yet run in game.
+- Add to Steam: the first start outside Steam asks (kdialog, zenity as fallback) "Add Minecraft Splitscreen to Steam?"
+  with the banner. mcss-steam.py appends a non-Steam shortcut to userdata/*/config/shortcuts.vdf (binary VDF,
+  read and written back unchanged after a backup, appid = crc32(quoted exe + name) | 0x80000000) and copies the
+  artwork to config/grid as <id>p/<id>/<id>_hero/_logo/_icon.png. Steam rewrites its shortcuts on exit, so the
+  dialog waits until it's closed. Asked once (steam-offered in the state dir); `--add-to-steam` asks again.
+  Artwork: Flux dev backgrounds from ComfyUI (assets/art), titles drawn by scripts/make-art.py. scripts/test-steam.sh
+  runs against a fake Steam folder; NOT yet checked against a real Steam / Deck.

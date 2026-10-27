@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/banner.png" alt="Minecraft Splitscreen: 2-4 players, one window, one controller each"></p>
+
 # Minecraft Splitscreen for Steam Deck
 
 2–4 player splitscreen Minecraft Java 26.3 as **one AppImage window**, so Steam's Game Mode (gamescope) shows
@@ -26,7 +28,9 @@ assignment. Controlify handles the controller input itself.
    (Dolphin: Properties → Permissions → "Is executable").
 2. Open Prism Launcher once, add your Microsoft account (Accounts → Manage Accounts → Add Microsoft), then close
    it.
-3. In Desktop Mode, Steam → Add a Game → Add a Non-Steam Game → Browse → pick the AppImage.
+3. In Desktop Mode, start the AppImage once. It offers to add itself to Steam, with its banner and artwork: press
+   **Add to Steam** (Steam has to be closed while it does, and it says so). Later, `--add-to-steam` offers again; or
+   add it by hand: Steam → Add a Game → Add a Non-Steam Game → Browse → pick the AppImage.
 4. Switch to Game Mode and launch it.
 
 The first launch creates Prism instances `P1`–`P4` (Minecraft 26.3 + Fabric + the mods) and the offline guest

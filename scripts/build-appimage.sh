@@ -16,7 +16,8 @@ OUT=${OUT:-$ROOT/dist/MinecraftSplitscreen-x86_64.AppImage}
 APP=$ROOT/dist/AppDir
 rm -rf "$APP" && mkdir -p "$APP/mods"
 cp -r "$ROOT/appimage/AppRun" "$ROOT/appimage/mcss-setup.sh" "$ROOT/appimage/kwin" "$ROOT/appimage/loading.qml" \
-	"$ROOT/appimage/mcss-update.py" "$APP/"
+	"$ROOT/appimage/mcss-update.py" "$ROOT/appimage/mcss-steam.py" "$ROOT/appimage/steam" "$APP/"
+cp "$ROOT/docs/banner.png" "$APP/steam/banner.png"
 # the version the self-update compares with GitHub's latest release (the release workflow checks it matches the tag)
 sed -n 's/^version=//p' "$ROOT/glue-mod/gradle.properties" > "$APP/VERSION"
 cp "$ROOT"/dist/mods/*.jar "$APP/mods/"

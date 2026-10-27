@@ -3,6 +3,7 @@
 # tiles 1-4 Minecraft clients, one per controller.
 #   MinecraftSplitscreen.AppImage            start
 #   MinecraftSplitscreen.AppImage --setup    (re)create the Prism instances and offline accounts, then exit
+#   MinecraftSplitscreen.AppImage --add-to-steam   add it to Steam as a non-Steam game, with artwork, then exit
 #   MinecraftSplitscreen.AppImage --no-update   don't look for a newer version on GitHub
 # P1 starts alone with "Press START to play": every controller that presses START becomes the next player (first
 # = P1), also later in game, and this script starts that player's view (P2-P4). A guest that quits frees its
@@ -31,6 +32,46 @@ fi
 # updated AppImage takes effect without a separate --setup
 "$HERE/mcss-setup.sh" "$HERE/mods" || exit 1
 [ "${1:-}" = --setup ] && exit 0
+
+# --- add to Steam: offered once on the first start outside Steam (--add-to-steam asks again at any time) ---
+steam_dialog() {   # steam_dialog <yes label> <no label> <title> <html text>; exit 0 = yes
+	if command -v kdialog >/dev/null; then
+		kdialog --title "$3" --yes-label "$1" --no-label "$2" --yesno "$4"
+	elif command -v zenity >/dev/null; then
+		zenity --question --title "$3" --ok-label "$1" --cancel-label "$2" --width 480 --text "$(sed 's/<[^>]*>//g' <<< "$4")"
+	else
+		return 2
+	fi
+}
+offer_steam() {   # offer_steam [force]
+	local exe=${APPIMAGE:-$HERE/AppRun} art="$HERE/steam" marker="$STATE/steam-offered" rc
+	if ! python3 "$HERE/mcss-steam.py" found; then
+		log "steam: no Steam account found, not offering"
+		[ "${1:-}" = force ] && steam_dialog OK Close "Minecraft Splitscreen" "Steam wasn't found for this user (log in to Steam once first)." >/dev/null
+		return 0
+	fi
+	steam_dialog "Add to Steam" "No thanks" "Minecraft Splitscreen" "<img src='file://$art/banner.png' width='560'><br><br><b>Add Minecraft Splitscreen to Steam?</b><br>It shows up in your Steam library with its artwork, so you can start it from Game Mode.<br><small>You can do this later with --add-to-steam.</small>"
+	rc=$?
+	[ $rc = 2 ] && { log "steam: no kdialog or zenity, can't ask"; return 0; }
+	[ $rc = 0 ] || { log "steam: declined"; touch "$marker"; return 0; }
+	# Steam rewrites its shortcuts when it exits, so it has to be closed while this is written
+	while python3 "$HERE/mcss-steam.py" running; do
+		steam_dialog "Retry" "Cancel" "Minecraft Splitscreen" "Steam is open. Close it completely (Steam menu, Exit), then press Retry." || { log "steam: cancelled, will ask again"; return 0; }
+		sleep 2
+	done
+	if python3 "$HERE/mcss-steam.py" add "$exe" "$art"; then
+		log "steam: added $exe"; touch "$marker"
+		steam_dialog OK Close "Minecraft Splitscreen" "<b>Added.</b> Open Steam and look in your library (or Non-Steam games)." >/dev/null
+	else
+		log "steam: couldn't add the shortcut"
+		steam_dialog OK Close "Minecraft Splitscreen" "Couldn't add it to Steam. See $STATE/apprun.log." >/dev/null
+	fi
+	return 0
+}
+if [ "${1:-}" = --add-to-steam ]; then offer_steam force; exit 0; fi
+if [ ! -e "$STATE/steam-offered" ] && [ -z "${SteamAppId:-}" ] && [ -z "${SteamGamepadUI:-}" ] && [ -z "${MCSS_UPDATED:-}" ]; then
+	offer_steam
+fi
 
 # custom skins: ~/Documents/Minecraft Skins (easy to reach from Desktop Mode) mirrored to where the Prism flatpak
 # can read them; profiles themselves live in $PRISM/mcss-profiles and are kept
