@@ -260,3 +260,10 @@
   when P1 is back on the server), and P1 leaving a server forgets refusals from that visit. Tested: refused by a
   bad host, P1 "leaves" and returns to the same address, and the guest tries again. Also confirmed in the wild:
   the Deck updated itself v0.8.0 -> v0.8.1 (offer, download, restart in the same KWin, backup kept).
+- Mods placed by the player were deleted on every launch (mcss-setup.sh wiped mods/*.jar). Now it installs only
+  what's missing, refreshes just the jars it installed earlier (mods/.mcss-managed, matched by Fabric mod id) and
+  keeps everything else, including the player's own copy of a bundled mod. scripts/test-setup.sh covers it (in CI).
+- P1 playing as an offline profile got the Microsoft account's inventory and position (or the previous host's):
+  the world's singleplayer_uuid in level.dat makes PlayerList.loadPlayerData load the last host's file for whoever
+  hosts. PlayerListMixin returns null for it, so the host loads its own UUID's data like the guests. Compiles;
+  not yet run in game.

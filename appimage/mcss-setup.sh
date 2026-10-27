@@ -84,9 +84,62 @@ for n in range(1, 5):
     print("instance P%d ready" % n)
 PY
 
-for n in 1 2 3 4; do
-	dst="$PRISM/instances/P$n/minecraft/mods"
-	rm -f "$dst"/*.jar
-	cp "$MODS"/*.jar "$dst/"
-done
-echo "mods installed: $(ls "$MODS" | tr '\n' ' ')"
+# Mods: install what's missing, refresh only jars this script installed earlier (listed in .mcss-managed), and never
+# touch anything else in mods/. Mods are matched by Fabric mod id, not file name.
+python3 - "$PRISM" "$MODS" <<'PY'
+import glob, json, os, shutil, sys, zipfile
+prism, bundle = sys.argv[1], sys.argv[2]
+OURS = {"splitscreen-glue"}  # always ours: Fabric refuses two copies, so stray older glue jars are replaced
+
+def mod_id(path):
+    try:
+        with zipfile.ZipFile(path) as z:
+            return json.loads(z.read("fabric.mod.json"), strict=False).get("id")
+    except Exception:
+        return None
+
+bundled = {}
+for f in sorted(glob.glob(os.path.join(bundle, "*.jar"))):
+    bundled[os.path.basename(f)] = mod_id(f) or sys.exit("bundled jar has no fabric.mod.json: " + f)
+if not bundled:
+    sys.exit("no mods found in " + bundle)
+ids = set(bundled.values())
+
+for n in range(1, 5):
+    mods = os.path.join(prism, "instances", "P%d" % n, "minecraft", "mods")
+    mf = os.path.join(mods, ".mcss-managed")
+    legacy = not os.path.exists(mf)  # installed by a version that wiped mods/, so jars for mod ids we ship are ours
+    managed = set()
+    if not legacy:
+        try:
+            managed = set(json.load(open(mf)))
+        except ValueError:
+            pass
+    present = {f: mod_id(os.path.join(mods, f)) for f in os.listdir(mods) if f.endswith(".jar")}
+    if legacy:
+        managed = {f for f, i in present.items() if i in ids}
+    managed &= set(present)
+    out, log = set(), []
+    for name, mid in bundled.items():
+        mine = [f for f in present if present[f] == mid and (f in managed or mid in OURS)]
+        theirs = [f for f in present if present[f] == mid and f not in mine]
+        if theirs:
+            log.append("kept %s" % ", ".join(theirs))
+            continue
+        for f in mine:  # replace our own earlier copy
+            if f != name:
+                os.remove(os.path.join(mods, f))
+        if name not in present or name not in managed or not os.path.exists(os.path.join(mods, name)) or \
+                os.path.getsize(os.path.join(mods, name)) != os.path.getsize(os.path.join(bundle, name)):
+            shutil.copy2(os.path.join(bundle, name), os.path.join(mods, name + ".tmp"))
+            os.replace(os.path.join(mods, name + ".tmp"), os.path.join(mods, name))
+            log.append("installed " + name)
+        out.add(name)
+    for f in managed - out - set(bundled):  # we installed it, no longer bundled (and not already replaced above)
+        if os.path.exists(os.path.join(mods, f)) and present[f] not in ids:
+            os.remove(os.path.join(mods, f))
+            log.append("retired " + f)
+    json.dump(sorted(out), open(mf + ".tmp", "w"))
+    os.replace(mf + ".tmp", mf)
+    print("P%d mods: %s" % (n, "; ".join(log) or "up to date"))
+PY

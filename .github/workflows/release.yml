@@ -29,6 +29,9 @@ jobs:
       - name: Tools
         run: sudo apt-get update -q && sudo apt-get install -y -q xvfb libgl1-mesa-dri libglx-mesa0 mesa-vulkan-drivers libvulkan1
 
+      - name: Mod install test
+        run: scripts/test-setup.sh
+
       - name: Fetch mods from Modrinth
         run: scripts/fetch-mods.sh
 

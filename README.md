@@ -30,8 +30,9 @@ assignment. Controlify handles the controller input itself.
 4. Switch to Game Mode and launch it.
 
 The first launch creates Prism instances `P1`–`P4` (Minecraft 26.3 + Fabric + the mods) and the offline guest
-accounts, and Prism downloads Minecraft and Java 25. Every launch refreshes the mods in those instances, so a new
-AppImage takes effect by itself (`--setup` only does that step and exits).
+accounts, and Prism downloads Minecraft and Java 25. Every launch installs any missing mods and refreshes the ones it installed earlier, so a new
+AppImage takes effect by itself (`--setup` only does that step and exits). Mods you add yourself are never removed,
+and if you supply your own copy of a bundled mod (say a different Sodium), yours is kept.
 
 ## Profiles
 Every view starts by asking **Choose your profile**: Player 1 before the main menu, the others before they join.
