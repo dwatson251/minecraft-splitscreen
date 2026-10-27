@@ -57,6 +57,31 @@ Every view starts by asking **Choose your profile**: Player 1 before the main me
 keyboard (X is Backspace). With Steam's keyboard (Steam + X), Space, Enter and the arrow keys work while a text
 box is selected.
 
+## Supported controllers
+Each player needs a gamepad of their own (the Deck's built-in controls count as one). Any pad that SDL 3
+recognises as a gamepad works: the game reads them through Controlify, which bundles SDL 3.4 and its controller
+database.
+
+| | Controller | Status |
+| --- | --- | --- |
+| <img src="docs/icons/steam-deck.svg" width="64" alt="Steam Deck"> | **Steam Deck** (built-in controls) | Tested |
+| <img src="docs/icons/playstation.svg" width="64" alt="PlayStation"> | **PlayStation**: DualSense (PS5), DualShock 4 | DualSense tested; DualShock 4 expected |
+| <img src="docs/icons/xbox.svg" width="64" alt="Xbox"> | **Xbox**: 360, One, Series, and the third-party pads that copy them | Expected, not tested |
+| <img src="docs/icons/switch.svg" width="64" alt="Switch"> | **Nintendo Switch**: Pro Controller and compatibles | Expected, not tested |
+| <img src="docs/icons/generic.svg" width="64" alt="Other gamepads"> | **Other gamepads**: 8BitDo, Logitech F310/F710, GameSir, Stadia, Amazon Luna, Steam Controller and more | In SDL's database, not tested |
+
+**Tested** means played here with that pad. **Expected** means SDL maps it and Controlify has its button icons,
+but nobody has tried it with this mod yet; please report what works.
+
+**Is this the full list?** There isn't a hand-kept one. The authority is SDL's controller database (the
+[SDL_GameControllerDB](https://github.com/mdqinc/SDL_GameControllerDB) that Controlify bundles). In this release it
+names 467 different controllers on Linux, so the table shows families, not every model. If your pad is in that
+database, it should work. Notes:
+- **Steam Input's virtual pad** (Valve `28de:11ff`) is ignored on purpose. It mirrors a real pad, so one press
+  would count twice; the real pads are read directly.
+- **Not gamepads:** flight sticks, wheels and other joysticks that SDL doesn't map to a gamepad layout aren't used.
+- **Wireless pads** work as long as Linux sees them (paired in Bluetooth settings, or via their USB dongle).
+
 ## Players and controllers
 P1 starts alone:
 - The first controller to press any button is Player 1. The game doesn't go on to the menus until it knows Player
